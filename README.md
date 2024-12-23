@@ -10,4 +10,3 @@ If you'd like to use it yourself, here's how it's organized:
   This folder contains the code you'll need to setup and ESP32-controlled electronics needed to maintain and control the temperature and humidity within the mycarium. It also has instructions for how to setup and configure a server to host your MQTT broker that will mediate communication between the mycarium controller and the app.
 * [**app**](app/)<br>
   This is the code for the mobile app that I built to monitor and control the mycarium.
-  
