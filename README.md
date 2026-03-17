@@ -25,6 +25,11 @@ The following tools must be installed globally before working on this project:
 | [Git](https://git-scm.com/) | Version control | [git-scm.com](https://git-scm.com/downloads) |
 | [GitHub CLI (`gh`)](https://cli.github.com/) | GitHub operations (PRs, issues, repo management) | [cli.github.com](https://cli.github.com/) |
 | [Rust (`rustup`, `cargo`)](https://www.rust-lang.org/) | Firmware development | [rustup.rs](https://rustup.rs/) |
+| [espup](https://github.com/esp-rs/espup) | ESP32 Xtensa Rust toolchain installer | `cargo install espup` then `espup install` |
+| [ldproxy](https://github.com/esp-rs/embuild) | Linker proxy for ESP-IDF builds | `cargo install ldproxy` |
+| [cargo-generate](https://github.com/cargo-generate/cargo-generate) | Project scaffolding from templates | `cargo install cargo-generate` |
+| [espflash](https://github.com/esp-rs/espflash) | Flash and monitor ESP32 over serial | `cargo install espflash` |
+| [Python 3](https://www.python.org/) | Required by ESP-IDF build system | [python.org](https://www.python.org/downloads/) |
 | [pnpm](https://pnpm.io/) | Node package manager | [pnpm.io/installation](https://pnpm.io/installation) |
 | [cspell](https://cspell.org/) | Spell checking for code and docs | `pnpm add -g cspell` |
 | [markdownlint-cli](https://github.com/igorshubovych/markdownlint-cli) | Markdown linting | `pnpm add -g markdownlint-cli` |

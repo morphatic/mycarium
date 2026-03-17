@@ -1,0 +1,9 @@
+# Copy this file to secrets/cfg.toml and fill in real values.
+# This file is sourced by .cargo/config.toml to set compile-time environment variables.
+
+[env]
+MYCARIUM_DEVICE_ID = "mycarium-1"
+MYCARIUM_WIFI_SSID = "your-wifi-ssid"
+MYCARIUM_WIFI_PASSWORD = "your-wifi-password"
+MYCARIUM_MQTT_BROKER_HOST = "your-broker-hostname"
+MYCARIUM_MQTT_BROKER_PORT = "8883"

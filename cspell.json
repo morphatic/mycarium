@@ -4,16 +4,24 @@
   "words": [
     "clientid",
     "deadband",
+    "embuild",
+    "espidf",
+    "espflash",
+    "espup",
+    "ldproxy",
     "microcontroller",
     "Mosquitto",
+    "MQTT",
     "mycarium",
     "mycariums",
     "nlspec",
     "rustup",
     "setpoint",
+    "sysenv",
     "Tauri",
     "unparseable",
-    "WROOM"
+    "WROOM",
+    "Xtensa"
   ],
   "ignorePaths": [
     "docs/rust-guidelines.md"
