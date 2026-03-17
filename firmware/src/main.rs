@@ -248,18 +248,18 @@ fn sync_ntp() -> EspSntp<'static> {
 
     let sntp = EspSntp::new_default().expect("Failed to create SNTP client");
 
-    for i in 0..60 {
+    for i in 0..120 {
         if sntp.get_sync_status() == SyncStatus::Completed {
             log::info!("NTP sync complete");
             return sntp;
         }
-        if i % 10 == 0 && i > 0 {
-            log::info!("NTP sync waiting... ({i}/60)");
+        if i % 20 == 0 && i > 0 {
+            log::info!("NTP sync waiting... ({}s/60s)", i / 2);
         }
         thread::sleep(Duration::from_millis(500));
     }
 
-    log::warn!("NTP sync timed out after 30s — proceeding anyway");
+    log::warn!("NTP sync timed out after 60s — proceeding anyway");
     sntp
 }
 
@@ -331,7 +331,7 @@ fn main() {
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
         ssid: env!("MYCARIUM_WIFI_SSID").try_into().unwrap(),
         password: env!("MYCARIUM_WIFI_PASSWORD").try_into().unwrap(),
-        auth_method: AuthMethod::WPA2WPA3Personal,
+        auth_method: AuthMethod::WPA2Personal,
         ..Default::default()
     }))
     .expect("Failed to set WiFi configuration");
@@ -352,6 +352,10 @@ fn main() {
     let sub_topic = subscribe_topic.clone();
     let mqtt_connected = Arc::new(AtomicBool::new(false));
     let mqtt_connected_cb = Arc::clone(&mqtt_connected);
+    let mqtt_subscribed = Arc::new(AtomicBool::new(false));
+    let mqtt_subscribed_cb = Arc::clone(&mqtt_subscribed);
+    let mqtt_needs_subscribe = Arc::new(AtomicBool::new(false));
+    let mqtt_needs_subscribe_cb = Arc::clone(&mqtt_needs_subscribe);
 
     log::info!("Connecting MQTT to {broker_url}...");
     let mut mqtt_client = EspMqttClient::new_cb(
@@ -368,10 +372,12 @@ fn main() {
                 EventPayload::Connected(_) => {
                     log::info!("MQTT connected");
                     mqtt_connected_cb.store(true, Ordering::Release);
+                    mqtt_needs_subscribe_cb.store(true, Ordering::Release);
                 }
                 EventPayload::Disconnected => {
                     log::warn!("MQTT disconnected — will auto-reconnect");
                     mqtt_connected_cb.store(false, Ordering::Release);
+                    mqtt_subscribed_cb.store(false, Ordering::Release);
                 }
                 EventPayload::Received { topic, data, .. } => {
                     if let Some(topic) = topic {
@@ -399,7 +405,7 @@ fn main() {
     )
     .expect("Failed to create MQTT client");
 
-    // Wait for TLS handshake and MQTT connection before subscribing
+    // Wait for TLS handshake and MQTT connection (up to 30s)
     log::info!("Waiting for MQTT connection...");
     for i in 0..60 {
         if mqtt_connected.load(Ordering::Acquire) {
@@ -411,13 +417,8 @@ fn main() {
         thread::sleep(Duration::from_millis(500));
     }
 
-    if mqtt_connected.load(Ordering::Acquire) {
-        mqtt_client
-            .subscribe(&subscribe_topic, QoS::AtLeastOnce)
-            .expect("Failed to subscribe to control topic");
-        log::info!("MQTT subscribed to {subscribe_topic}");
-    } else {
-        log::error!("MQTT connection timed out after 30s — continuing without MQTT");
+    if !mqtt_connected.load(Ordering::Acquire) {
+        log::warn!("MQTT not yet connected after 30s — will subscribe when connected");
     }
 
     // Discard first BME280 reading (often stale after init)
@@ -427,6 +428,21 @@ fn main() {
     // Section 7.1: Polling loop
     log::info!("Entering polling loop (interval: {POLL_INTERVAL_SEC}s)");
     loop {
+        // Subscribe (or re-subscribe) when MQTT connects/reconnects
+        if mqtt_needs_subscribe.load(Ordering::Acquire) && !mqtt_subscribed.load(Ordering::Acquire)
+        {
+            match mqtt_client.subscribe(&subscribe_topic, QoS::AtLeastOnce) {
+                Ok(_) => {
+                    log::info!("MQTT subscribed to {subscribe_topic}");
+                    mqtt_subscribed.store(true, Ordering::Release);
+                    mqtt_needs_subscribe.store(false, Ordering::Release);
+                }
+                Err(e) => {
+                    log::error!("MQTT subscribe failed: {e:?}");
+                }
+            }
+        }
+
         match bme280.measure(&mut delay) {
             Ok(m) => {
                 let mut s = state.lock().unwrap();
@@ -469,6 +485,14 @@ fn main() {
                     .unwrap_or_default()
                     .as_secs() as i64;
 
+                // Don't publish if NTP hasn't synced (ts < Jan 2025 = pre-epoch uptime)
+                if ts < 1_735_689_600 {
+                    log::warn!("Clock not synced (ts={ts}), skipping MQTT publish");
+                    drop(s);
+                    thread::sleep(Duration::from_secs(POLL_INTERVAL_SEC));
+                    continue;
+                }
+
                 let status = StatusMessage {
                     ts,
                     temp_c: m.temperature,
@@ -495,9 +519,9 @@ fn main() {
                             if status.heater_on { "ON" } else { "OFF" },
                             if status.fogger_on { "ON" } else { "OFF" },
                         );
-                        if let Err(e) = mqtt_client.enqueue(
+                        if let Err(e) = mqtt_client.publish(
                             &publish_topic,
-                            QoS::AtLeastOnce,
+                            QoS::AtMostOnce,
                             false,
                             json.as_bytes(),
                         ) {
