@@ -25,6 +25,7 @@ esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 log = "0.4"
 esp-idf-svc = { version = "0.52.1", features = ["critical-section"] }
 esp-idf-hal = "0.46"
+bme280 = "0.5"
 
 [build-dependencies]
 embuild = "0.33"
