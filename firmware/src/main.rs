@@ -6,15 +6,216 @@ use esp_idf_hal::i2c::config::Config as I2cConfig;
 use esp_idf_hal::units::FromValueType;
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::mqtt::client::{EspMqttClient, EventPayload, MqttClientConfiguration, QoS};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::sntp::{EspSntp, SyncStatus};
-use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
+use esp_idf_svc::tls::X509;
+use esp_idf_svc::wifi::{AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi};
+use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+// Section 10.2: Named Constants
+const DEVICE_ID: &str = env!("MYCARIUM_DEVICE_ID");
+const MQTT_BROKER_HOST: &str = env!("MYCARIUM_MQTT_BROKER_HOST");
+const MQTT_BROKER_PORT: &str = env!("MYCARIUM_MQTT_BROKER_PORT");
 const BME280_ADDR: u8 = 0x76;
+const POLL_INTERVAL_SEC: u64 = 30;
+const _STATUS_EXPIRY: u32 = 90; // for MQTT v5 message expiry (future use)
+
+// WiFi backoff
 const WIFI_INITIAL_BACKOFF_MS: u64 = 1_000;
 const WIFI_MAX_BACKOFF_MS: u64 = 60_000;
+
+// Section 10.1: Compile-time TLS certificates (null-terminated PEM for X509)
+const CA_CERT: X509<'static> =
+    X509::pem_until_nul(concat!(include_str!("../secrets/ca.crt"), "\0").as_bytes());
+const CLIENT_CERT: X509<'static> =
+    X509::pem_until_nul(concat!(include_str!("../secrets/client.crt"), "\0").as_bytes());
+const CLIENT_KEY: X509<'static> =
+    X509::pem_until_nul(concat!(include_str!("../secrets/client.key"), "\0").as_bytes());
+
+// Section 8.2: Default thresholds
+const DEFAULT_TEMP_MIN: f32 = 23.9;
+const DEFAULT_TEMP_MAX: f32 = 27.8;
+const DEFAULT_HUM_MIN: f32 = 85.0;
+const DEFAULT_HUM_MAX: f32 = 92.0;
+
+// Section 7.2: Status message schema
+#[derive(Serialize)]
+struct StatusMessage {
+    ts: i64,
+    temp_c: f32,
+    temp_f: f32,
+    humidity: f32,
+    temp_min: f32,
+    temp_max: f32,
+    hum_min: f32,
+    hum_max: f32,
+    heater_on: bool,
+    fogger_on: bool,
+    heater_action: &'static str,
+    fogger_action: &'static str,
+    heater_mode: &'static str,
+    fogger_mode: &'static str,
+}
+
+// Section 9.1: Control message schema
+#[derive(Deserialize, Default)]
+struct ControlMessage {
+    temp_min: Option<f32>,
+    temp_max: Option<f32>,
+    hum_min: Option<f32>,
+    hum_max: Option<f32>,
+    heater_mode: Option<String>,
+    fogger_mode: Option<String>,
+    heater_on: Option<bool>,
+    fogger_on: Option<bool>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ActuatorMode {
+    Auto,
+    Manual,
+}
+
+impl ActuatorMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            ActuatorMode::Auto => "auto",
+            ActuatorMode::Manual => "manual",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "auto" => Some(ActuatorMode::Auto),
+            "manual" => Some(ActuatorMode::Manual),
+            _ => None,
+        }
+    }
+}
+
+struct DeviceState {
+    temp_min: f32,
+    temp_max: f32,
+    hum_min: f32,
+    hum_max: f32,
+    heater_on: bool,
+    fogger_on: bool,
+    heater_mode: ActuatorMode,
+    fogger_mode: ActuatorMode,
+}
+
+impl DeviceState {
+    fn new() -> Self {
+        Self {
+            temp_min: DEFAULT_TEMP_MIN,
+            temp_max: DEFAULT_TEMP_MAX,
+            hum_min: DEFAULT_HUM_MIN,
+            hum_max: DEFAULT_HUM_MAX,
+            heater_on: false,
+            fogger_on: false,
+            heater_mode: ActuatorMode::Auto,
+            fogger_mode: ActuatorMode::Auto,
+        }
+    }
+
+    // Section 9.2: Apply control message with validation
+    fn apply_control(&mut self, msg: &ControlMessage) {
+        // Step 1: threshold updates
+        match (msg.temp_min, msg.temp_max) {
+            (Some(min), Some(max)) => {
+                if max > min {
+                    self.temp_min = min;
+                    self.temp_max = max;
+                } else {
+                    log::warn!("Invalid temp thresholds (max <= min), ignoring");
+                }
+            }
+            (Some(min), None) => {
+                if min < self.temp_max {
+                    self.temp_min = min;
+                }
+            }
+            (None, Some(max)) => {
+                if max > self.temp_min {
+                    self.temp_max = max;
+                }
+            }
+            (None, None) => {}
+        }
+
+        match (msg.hum_min, msg.hum_max) {
+            (Some(min), Some(max)) => {
+                if max > min {
+                    self.hum_min = min;
+                    self.hum_max = max;
+                } else {
+                    log::warn!("Invalid humidity thresholds (max <= min), ignoring");
+                }
+            }
+            (Some(min), None) => {
+                if min < self.hum_max {
+                    self.hum_min = min;
+                }
+            }
+            (None, Some(max)) => {
+                if max > self.hum_min {
+                    self.hum_max = max;
+                }
+            }
+            (None, None) => {}
+        }
+
+        // Step 2: mode changes
+        if let Some(ref mode) = msg.heater_mode {
+            if let Some(m) = ActuatorMode::from_str(mode) {
+                self.heater_mode = m;
+            } else {
+                log::warn!("Invalid heater_mode: {mode}");
+            }
+        }
+        if let Some(ref mode) = msg.fogger_mode {
+            if let Some(m) = ActuatorMode::from_str(mode) {
+                self.fogger_mode = m;
+            } else {
+                log::warn!("Invalid fogger_mode: {mode}");
+            }
+        }
+
+        // Step 3: manual on/off (only honoured in manual mode)
+        if self.heater_mode == ActuatorMode::Manual {
+            if let Some(on) = msg.heater_on {
+                self.heater_on = on;
+            }
+        }
+        if self.fogger_mode == ActuatorMode::Manual {
+            if let Some(on) = msg.fogger_on {
+                self.fogger_on = on;
+            }
+        }
+    }
+}
+
+// Section 8.1: Auto-mode evaluation with hysteresis
+fn evaluate_auto(device_on: bool, value: f32, min: f32, max: f32) -> (bool, &'static str) {
+    if device_on {
+        if value > max {
+            (false, "turned off")
+        } else {
+            (true, "none")
+        }
+    } else {
+        if value < min {
+            (true, "turned on")
+        } else {
+            (false, "none")
+        }
+    }
+}
 
 fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) {
     let mut delay_ms = WIFI_INITIAL_BACKOFF_MS;
@@ -47,10 +248,8 @@ fn sync_ntp() -> EspSntp<'static> {
 
     let sntp = EspSntp::new_default().expect("Failed to create SNTP client");
 
-    // Wait for sync (timeout after 30s)
     for i in 0..60 {
-        let status = sntp.get_sync_status();
-        if status == SyncStatus::Completed {
+        if sntp.get_sync_status() == SyncStatus::Completed {
             log::info!("NTP sync complete");
             return sntp;
         }
@@ -68,7 +267,7 @@ fn main() {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Mycarium firmware starting");
+    log::info!("Mycarium firmware starting (device: {DEVICE_ID})");
 
     let peripherals = Peripherals::take().unwrap();
 
@@ -83,7 +282,6 @@ fn main() {
     let i2c_config = I2cConfig::new().baudrate(100.kHz().into());
     let mut delay = Delay::new_default();
 
-    // Attempt 1: SDA=21, SCL=22
     log::info!("Trying I2C: SDA=GPIO21, SCL=GPIO22");
     let i2c = I2cDriver::new(
         peripherals.i2c0,
@@ -93,7 +291,6 @@ fn main() {
     )
     .expect("Failed to initialize I2C");
 
-    // Give the BME280 time to power up before init
     thread::sleep(Duration::from_millis(100));
 
     let mut bme280 = BME280::new(i2c, BME280_ADDR);
@@ -103,7 +300,6 @@ fn main() {
         log::warn!("BME280 init failed ({pin_label}): {e:?}, trying swapped pins");
         drop(bme280);
 
-        // SAFETY: previous I2cDriver dropped, releasing the hardware
         let p = unsafe { Peripherals::steal() };
 
         pin_label = "SDA=22, SCL=21";
@@ -125,7 +321,6 @@ fn main() {
     let sysloop = EspSystemEventLoop::take().unwrap();
     let nvs = EspDefaultNvsPartition::take().unwrap();
 
-    // SAFETY: WiFi needs modem peripheral; original Peripherals already consumed
     let p = unsafe { Peripherals::steal() };
     let mut wifi = BlockingWifi::wrap(
         EspWifi::new(p.modem, sysloop.clone(), Some(nvs)).expect("Failed to create WiFi driver"),
@@ -136,6 +331,7 @@ fn main() {
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
         ssid: env!("MYCARIUM_WIFI_SSID").try_into().unwrap(),
         password: env!("MYCARIUM_WIFI_PASSWORD").try_into().unwrap(),
+        auth_method: AuthMethod::WPA2WPA3Personal,
         ..Default::default()
     }))
     .expect("Failed to set WiFi configuration");
@@ -143,27 +339,180 @@ fn main() {
     wifi.start().expect("Failed to start WiFi");
     connect_wifi(&mut wifi);
 
-    // NTP synchronization (Section 5.2) — must complete before sensor reads / MQTT
-    // Keep _sntp alive so background sync continues running
+    // NTP synchronization (Section 5.2)
     let _sntp = sync_ntp();
 
-    // Read sensor in a loop
+    // MQTT connection (Section 6)
+    let publish_topic = format!("mycarium/status/{DEVICE_ID}");
+    let subscribe_topic = format!("mycarium/control/{DEVICE_ID}");
+    let broker_url = format!("mqtts://{MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}");
+
+    let state = Arc::new(Mutex::new(DeviceState::new()));
+    let state_for_cb = Arc::clone(&state);
+    let sub_topic = subscribe_topic.clone();
+    let mqtt_connected = Arc::new(AtomicBool::new(false));
+    let mqtt_connected_cb = Arc::clone(&mqtt_connected);
+
+    log::info!("Connecting MQTT to {broker_url}...");
+    let mut mqtt_client = EspMqttClient::new_cb(
+        &broker_url,
+        &MqttClientConfiguration {
+            client_id: Some(DEVICE_ID),
+            server_certificate: Some(CA_CERT),
+            client_certificate: Some(CLIENT_CERT),
+            private_key: Some(CLIENT_KEY),
+            ..Default::default()
+        },
+        move |event| {
+            match event.payload() {
+                EventPayload::Connected(_) => {
+                    log::info!("MQTT connected");
+                    mqtt_connected_cb.store(true, Ordering::Release);
+                }
+                EventPayload::Disconnected => {
+                    log::warn!("MQTT disconnected — will auto-reconnect");
+                    mqtt_connected_cb.store(false, Ordering::Release);
+                }
+                EventPayload::Received { topic, data, .. } => {
+                    if let Some(topic) = topic {
+                        if topic == sub_topic {
+                            match serde_json::from_slice::<ControlMessage>(data) {
+                                Ok(msg) => {
+                                    log::info!("Control message received on {topic}");
+                                    if let Ok(mut s) = state_for_cb.lock() {
+                                        s.apply_control(&msg);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::warn!("Malformed control message, discarding: {e}");
+                                }
+                            }
+                        }
+                    }
+                }
+                EventPayload::Error(e) => {
+                    log::error!("MQTT error: {e:?}");
+                }
+                _ => {}
+            }
+        },
+    )
+    .expect("Failed to create MQTT client");
+
+    // Wait for TLS handshake and MQTT connection before subscribing
+    log::info!("Waiting for MQTT connection...");
+    for i in 0..60 {
+        if mqtt_connected.load(Ordering::Acquire) {
+            break;
+        }
+        if i % 10 == 0 && i > 0 {
+            log::info!("MQTT still connecting... ({i}/60)");
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    if mqtt_connected.load(Ordering::Acquire) {
+        mqtt_client
+            .subscribe(&subscribe_topic, QoS::AtLeastOnce)
+            .expect("Failed to subscribe to control topic");
+        log::info!("MQTT subscribed to {subscribe_topic}");
+    } else {
+        log::error!("MQTT connection timed out after 30s — continuing without MQTT");
+    }
+
+    // Discard first BME280 reading (often stale after init)
+    let _ = bme280.measure(&mut delay);
+    thread::sleep(Duration::from_millis(100));
+
+    // Section 7.1: Polling loop
+    log::info!("Entering polling loop (interval: {POLL_INTERVAL_SEC}s)");
     loop {
         match bme280.measure(&mut delay) {
             Ok(m) => {
+                let mut s = state.lock().unwrap();
+
+                // Section 8: Evaluate control logic
+                let (heater_action_str, fogger_action_str);
+
+                if s.heater_mode == ActuatorMode::Auto {
+                    let (on, action) = evaluate_auto(s.heater_on, m.temperature, s.temp_min, s.temp_max);
+                    s.heater_on = on;
+                    heater_action_str = action;
+                } else {
+                    heater_action_str = "none";
+                }
+
+                if s.fogger_mode == ActuatorMode::Auto {
+                    let (on, action) = evaluate_auto(s.fogger_on, m.humidity, s.hum_min, s.hum_max);
+                    s.fogger_on = on;
+                    fogger_action_str = action;
+                } else {
+                    fogger_action_str = "none";
+                }
+
+                // Drive relays
+                if s.heater_on {
+                    heater.set_high().unwrap();
+                } else {
+                    heater.set_low().unwrap();
+                }
+                if s.fogger_on {
+                    fogger.set_high().unwrap();
+                } else {
+                    fogger.set_low().unwrap();
+                }
+
                 let temp_f = m.temperature * 9.0 / 5.0 + 32.0;
-                log::info!(
-                    "{pin_label} | temp={:.1}C ({:.1}F) humidity={:.1}% pressure={:.1}hPa",
-                    m.temperature,
+
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs() as i64;
+
+                let status = StatusMessage {
+                    ts,
+                    temp_c: m.temperature,
                     temp_f,
-                    m.humidity,
-                    m.pressure / 100.0,
-                );
+                    humidity: m.humidity,
+                    temp_min: s.temp_min,
+                    temp_max: s.temp_max,
+                    hum_min: s.hum_min,
+                    hum_max: s.hum_max,
+                    heater_on: s.heater_on,
+                    fogger_on: s.fogger_on,
+                    heater_action: heater_action_str,
+                    fogger_action: fogger_action_str,
+                    heater_mode: s.heater_mode.as_str(),
+                    fogger_mode: s.fogger_mode.as_str(),
+                };
+
+                drop(s); // release lock before MQTT publish
+
+                match serde_json::to_string(&status) {
+                    Ok(json) => {
+                        log::info!("temp={:.1}C ({:.1}F) hum={:.1}% heater={} fogger={}",
+                            status.temp_c, status.temp_f, status.humidity,
+                            if status.heater_on { "ON" } else { "OFF" },
+                            if status.fogger_on { "ON" } else { "OFF" },
+                        );
+                        if let Err(e) = mqtt_client.enqueue(
+                            &publish_topic,
+                            QoS::AtLeastOnce,
+                            false,
+                            json.as_bytes(),
+                        ) {
+                            log::error!("MQTT publish failed: {e:?}");
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("JSON serialization failed: {e}");
+                    }
+                }
             }
             Err(e) => {
-                log::error!("Sensor read failed: {e:?}");
+                log::error!("Sensor read failed: {e:?} — skipping cycle");
             }
         }
-        thread::sleep(Duration::from_secs(2));
+        thread::sleep(Duration::from_secs(POLL_INTERVAL_SEC));
     }
 }
