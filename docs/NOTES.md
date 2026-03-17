@@ -30,6 +30,37 @@ cargo build
 First build takes ~10 minutes (downloads and compiles ESP-IDF). Subsequent
 builds are ~1 minute.
 
+## Firmware Design Decisions (2026-03-17)
+
+- **WPA2 over WPA3**: Forced `AuthMethod::WPA2Personal` because WPA3-SAE
+  handshakes with the home router (TP-Link) intermittently timed out
+  (0xcc00 4-way handshake failure). WPA2 connects reliably on first attempt.
+
+- **Compile-time secrets via build.rs**: `firmware/build.rs` parses
+  `secrets/cfg.toml` and emits `cargo:rustc-env` directives. TLS certs are
+  embedded via `include_str!` with null-terminated PEM. The spec references
+  `secrets.h` / `certificates.h` (C convention) — Rust equivalent is
+  `secrets/cfg.toml` + `secrets/*.crt` / `secrets/*.key`.
+
+- **BME280 I2C at 100 kHz**: Default baudrate (1 MHz) caused NoAcknowledge
+  errors during the BME280 soft-reset + calibration sequence. 100 kHz is
+  reliable.
+
+- **QoS 0 for status, QoS 1 for control subscribe**: Status messages are
+  ephemeral — missing one is acceptable, duplicates are worse. Control
+  messages use AtLeastOnce to avoid missed commands.
+
+- **Subscribe-on-reconnect**: MQTT subscribe happens in the polling loop
+  whenever the `Connected` callback sets a flag, not just during initial
+  startup. This handles late connects and reconnects after disconnection.
+
+- **NTP guard**: If `SystemTime::now()` returns a timestamp before Jan 2025,
+  NTP hasn't synced and MQTT publish is skipped (relay control still runs).
+
+- **Mosquitto local debug listener**: Added `listener 1883 127.0.0.1` with
+  `allow_anonymous true` on the server for easy debugging without client
+  certs. Only binds to localhost — not exposed to the internet.
+
 ---
 
 A mycological terrarium, what I'm calling a "mycarium," is a climate controlled container for growing mushrooms. In it's current incarnation, it is an acrylic box with a volume of about 10 cubic feet and a small hole in the bottom to allow carbon dioxide to escape. The mycarium's climate control system is as follows:

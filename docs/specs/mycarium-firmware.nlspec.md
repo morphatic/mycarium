@@ -471,33 +471,33 @@ masked.
 
 ## 13. Definition of Done
 
-- [ ] BME280 is detected at boot on either I2C pin ordering (21/22 or 22/21)
-- [ ] Boot halts with a serial error if BME280 is not detected on any pin combination
-- [ ] Both relays are initialized to OFF on boot
-- [ ] WiFi connects on boot with exponential backoff on failure
-- [ ] WiFi automatically reconnects after disconnection without reboot
-- [ ] NTP syncs before any TLS handshake or sensor read
-- [ ] MQTT connects over mTLS on port 8883 with device ID as client ID
-- [ ] MQTT subscribes to `mycarium/control/<device-id>` on connection
-- [ ] MQTT reconnects automatically after disconnection with retry delay
-- [ ] Connection failures are logged with descriptive reason codes
-- [ ] Sensor is polled every 30 seconds (configurable)
-- [ ] Status message is published as compact JSON with all fields from Section 7.2
+- [x] BME280 is detected at boot on either I2C pin ordering (21/22 or 22/21)
+- [x] Boot halts with a serial error if BME280 is not detected on any pin combination
+- [x] Both relays are initialized to OFF on boot
+- [x] WiFi connects on boot with exponential backoff on failure
+- [x] WiFi automatically reconnects after disconnection without reboot
+- [x] NTP syncs before any TLS handshake or sensor read
+- [x] MQTT connects over mTLS on port 8883 with device ID as client ID
+- [x] MQTT subscribes to `mycarium/control/<device-id>` on connection
+- [x] MQTT reconnects automatically after disconnection with retry delay
+- [x] Connection failures are logged with descriptive reason codes
+- [x] Sensor is polled every 30 seconds (configurable)
+- [x] Status message is published as compact JSON with all fields from Section 7.2
 - [ ] Status message includes MQTT v5 message expiry interval
-- [ ] Failed sensor reads skip the cycle with no publish and no actuation
-- [ ] Heater turns ON when temperature < temp_min (auto mode)
-- [ ] Heater turns OFF when temperature > temp_max (auto mode)
-- [ ] Fogger turns ON when humidity < hum_min (auto mode)
-- [ ] Fogger turns OFF when humidity > hum_max (auto mode)
-- [ ] Hysteresis: device turned on at min does not turn off until reading > max
-- [ ] No actuator toggles more than once per cycle
-- [ ] Default thresholds: temp 23.9-27.8 C, humidity 85-92%
-- [ ] Manual mode: actuator state set by control message, not overridden by thresholds
-- [ ] Manual-to-auto transition hands control to threshold logic immediately
-- [ ] Control messages with max <= min thresholds are rejected
-- [ ] Absent fields in control messages leave current config unchanged
-- [ ] Malformed JSON control messages are discarded with serial log
-- [ ] Secrets are in `secrets.h` / `certificates.h`, excluded from version control
-- [ ] Named constants are defined at the top of the main source file
-- [ ] Firmware compiles and flashes to ESP32-WROOM-32 via ESP-IDF with Rust
-- [ ] Integration: device boots, connects WiFi, syncs NTP, connects MQTT, publishes status, receives and applies a control message, and reflects the new state in the next published status message
+- [x] Failed sensor reads skip the cycle with no publish and no actuation
+- [x] Heater turns ON when temperature < temp_min (auto mode)
+- [x] Heater turns OFF when temperature > temp_max (auto mode)
+- [x] Fogger turns ON when humidity < hum_min (auto mode)
+- [x] Fogger turns OFF when humidity > hum_max (auto mode)
+- [x] Hysteresis: device turned on at min does not turn off until reading > max
+- [x] No actuator toggles more than once per cycle
+- [x] Default thresholds: temp 23.9-27.8 C, humidity 85-92%
+- [x] Manual mode: actuator state set by control message, not overridden by thresholds
+- [x] Manual-to-auto transition hands control to threshold logic immediately
+- [x] Control messages with max <= min thresholds are rejected
+- [x] Absent fields in control messages leave current config unchanged
+- [x] Malformed JSON control messages are discarded with serial log
+- [x] Secrets are in `secrets.h` / `certificates.h`, excluded from version control
+- [x] Named constants are defined at the top of the main source file
+- [x] Firmware compiles and flashes to ESP32-WROOM-32 via ESP-IDF with Rust
+- [x] Integration: device boots, connects WiFi, syncs NTP, connects MQTT, publishes status, receives and applies a control message, and reflects the new state in the next published status message
