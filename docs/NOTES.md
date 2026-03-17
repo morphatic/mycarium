@@ -11,18 +11,20 @@ workarounds discovered during initial setup (2026-03-17):
 
 2. **Python**: The MSYS2 Python (`/c/msys64/mingw64/bin/python`) cannot
    create virtualenvs for ESP-IDF. The build must use a native Windows
-   Python (e.g. `C:/Python313/python.exe`). Set via `PYTHON` and
-   `IDF_PYTHON` env vars in `.cargo/config.toml`.
+   Python (e.g. `C:/Python313/python.exe`). Ensure native Python appears
+   before MSYS2 in PATH (do not prepend `/c/msys64/mingw64/bin` in
+   `~/.bash_profile`). Also set `PYTHON` and `IDF_PYTHON` in
+   `.cargo/config.toml` as a safeguard.
 
 3. **LIBCLANG_PATH**: `espup install` generates `export-esp.ps1`
-   (PowerShell only). In Git Bash, the env vars are not set. `LIBCLANG_PATH`
-   is set in `.cargo/config.toml`, but the clang and xtensa-esp-elf `bin`
-   directories must also be on PATH at build time.
+   (PowerShell only). In Git Bash, `LIBCLANG_PATH` must be set separately
+   — done via `.cargo/config.toml`. The clang and xtensa-esp-elf `bin`
+   directories are added to PATH by `espup install` on Windows.
 
 **Build command** (from `firmware/`):
 
 ```bash
-PATH="/c/Python313:$HOME/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-clang/bin:$HOME/.rustup/toolchains/esp/xtensa-esp-elf/bin:$PATH" cargo build
+cargo build
 ```
 
 First build takes ~10 minutes (downloads and compiles ESP-IDF). Subsequent
