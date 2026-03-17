@@ -1,5 +1,35 @@
 # Notes on the Mycarium
 
+## Windows Build Environment (ESP-RS)
+
+Building the firmware on Windows (Git Bash in VSCode) requires several
+workarounds discovered during initial setup (2026-03-17):
+
+1. **Path length**: ESP-IDF builds generate deeply nested output paths that
+   exceed Windows limits. Fix: set `target-dir = "C:/espbuild"` in
+   `firmware/.cargo/config.toml` and `ESP_IDF_TOOLS_INSTALL_DIR = "global"`.
+
+2. **Python**: The MSYS2 Python (`/c/msys64/mingw64/bin/python`) cannot
+   create virtualenvs for ESP-IDF. The build must use a native Windows
+   Python (e.g. `C:/Python313/python.exe`). Set via `PYTHON` and
+   `IDF_PYTHON` env vars in `.cargo/config.toml`.
+
+3. **LIBCLANG_PATH**: `espup install` generates `export-esp.ps1`
+   (PowerShell only). In Git Bash, the env vars are not set. `LIBCLANG_PATH`
+   is set in `.cargo/config.toml`, but the clang and xtensa-esp-elf `bin`
+   directories must also be on PATH at build time.
+
+**Build command** (from `firmware/`):
+
+```bash
+PATH="/c/Python313:$HOME/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-clang/bin:$HOME/.rustup/toolchains/esp/xtensa-esp-elf/bin:$PATH" cargo build
+```
+
+First build takes ~10 minutes (downloads and compiles ESP-IDF). Subsequent
+builds are ~1 minute.
+
+---
+
 A mycological terrarium, what I'm calling a "mycarium," is a climate controlled container for growing mushrooms. In it's current incarnation, it is an acrylic box with a volume of about 10 cubic feet and a small hole in the bottom to allow carbon dioxide to escape. The mycarium's climate control system is as follows:
 
 * Temperature: heating pad, like that found in a lizard's cage

@@ -1,5 +1,6 @@
 [build]
 target = "xtensa-esp32-espidf"
+target-dir = "C:/espbuild"
 
 [target.'cfg(target_os = "espidf")']
 linker = "ldproxy"
@@ -12,8 +13,13 @@ build-std = ["std", "panic_abort"]
 [env]
 MCU = "esp32"
 ESP_IDF_VERSION = "v5.5.3"
-ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
+ESP_IDF_TOOLS_INSTALL_DIR = "global"
+# Native Windows Python required — MSYS2 Python can't create venvs for ESP-IDF
+IDF_PYTHON = "C:/Python313/python.exe"
+PYTHON = "C:/Python313/python.exe"
 
-# Uncomment this if you have moved the target dir by setting CARGO_TARGET_DIR or similar.
-# Required for now due to embuild limitations.
-#CARGO_WORKSPACE_DIR = { value = "", relative = true }
+# espup installs these but only exports them via PowerShell (export-esp.ps1).
+# Set them here so builds work from any shell.
+LIBCLANG_PATH = "C:/Users/Morgan/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-clang/bin"
+
+CARGO_WORKSPACE_DIR = { value = "", relative = true }

@@ -7,8 +7,11 @@
     "embuild",
     "espidf",
     "espflash",
+    "espbuild",
     "espup",
     "ldproxy",
+    "LIBCLANG",
+    "MSYS",
     "microcontroller",
     "Mosquitto",
     "MQTT",
@@ -20,10 +23,12 @@
     "sysenv",
     "Tauri",
     "unparseable",
+    "virtualenvs",
     "WROOM",
     "Xtensa"
   ],
   "ignorePaths": [
-    "docs/rust-guidelines.md"
+    "docs/rust-guidelines.md",
+    "**/target/**"
   ]
 }
