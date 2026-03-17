@@ -1,0 +1,21 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "clientid",
+    "deadband",
+    "microcontroller",
+    "Mosquitto",
+    "mycarium",
+    "mycariums",
+    "nlspec",
+    "rustup",
+    "setpoint",
+    "Tauri",
+    "unparseable",
+    "WROOM"
+  ],
+  "ignorePaths": [
+    "docs/rust-guidelines.md"
+  ]
+}
