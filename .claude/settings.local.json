@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(gh auth:*)",
+      "Bash(git --version)",
+      "Bash(cargo --version)",
+      "Bash(pnpm --version)",
+      "Bash(uv --version)",
+      "Bash(markdownlint --version)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh\" auth status 2>&1)",
+      "Bash(markdownlint NOTES.md)",
+      "Bash(markdownlint mycarium-app.nlspec.md)",
+      "Bash(markdownlint NOTES.md mycarium-app.nlspec.md mycarium-server.nlspec.md mycarium-firmware.nlspec.md)",
+      "Bash(git init:*)",
+      "Bash(npx markdownlint-cli:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

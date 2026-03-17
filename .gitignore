@@ -1,0 +1,26 @@
+# Rust
+**/target/
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+
+# Node
+node_modules/
+dist/
+
+# Secrets
+secrets.h
+certificates.h
+*.pem
+*.key
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
