@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from "react-router";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DevicePage } from "./pages/DevicePage";
 import { useAuthStore } from "./stores/auth";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,14 @@ export const routes: RouteObject[] = [
     element: (
       <AuthGuard>
         <DashboardPage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: "/device/:id",
+    element: (
+      <AuthGuard>
+        <DevicePage />
       </AuthGuard>
     ),
   },
