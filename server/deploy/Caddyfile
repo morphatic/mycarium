@@ -1,5 +1,0 @@
-mycarium.morphatic.com {
-	reverse_proxy /health localhost:3000
-	reverse_proxy /auth/* localhost:3000
-	reverse_proxy /devices/* localhost:3000
-}
