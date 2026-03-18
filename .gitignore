@@ -17,10 +17,16 @@ certificates.h
 *.key
 .env
 .env.*
+!.env.example
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Server runtime data
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
 
 # IDE
 .idea/
