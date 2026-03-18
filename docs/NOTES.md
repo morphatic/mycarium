@@ -61,6 +61,36 @@ builds are ~1 minute.
   `allow_anonymous true` on the server for easy debugging without client
   certs. Only binds to localhost — not exposed to the internet.
 
+## Server Design Decisions (2026-03-18)
+
+- **TypeScript + Fastify + SQLite**: Single-process server runs both the
+  MQTT subscriber and REST API. better-sqlite3 is synchronous (microsecond
+  inserts), avoiding concurrency issues in single-threaded Node.
+  drizzle-orm for type-safe queries.
+
+- **SQLite WAL mode**: Enabled on startup for better read concurrency
+  between MQTT writes and API queries.
+
+- **Opaque session tokens over JWTs**: Server already has a database, so
+  session lookup is cheap. Opaque tokens allow instant revocation without
+  token blacklists or signing key management.
+
+- **Certificate issuance via `child_process.execFile('openssl')`**: The
+  server already has OpenSSL 3.x installed and configured with the CA.
+  node-forge has known security concerns. This approach won't work on
+  Windows dev machines, but the cert service only runs on the Linux server
+  (mocked in tests via vitest).
+
+- **Caddy for HTTPS**: Auto Let's Encrypt for the REST API. Fastify
+  listens on localhost:3000 (HTTP only). mTLS for MQTT stays on Mosquitto.
+
+- **Device activation inline**: When a reading is persisted, the
+  subscriber checks if a pending device record matches the device_id and
+  activates it. No polling or separate job needed.
+
+- **Retention as a daily interval**: `setInterval` in the Node process
+  runs the cleanup once per day. Simple and avoids adding cron dependencies.
+
 ---
 
 A mycological terrarium, what I'm calling a "mycarium," is a climate controlled container for growing mushrooms. In it's current incarnation, it is an acrylic box with a volume of about 10 cubic feet and a small hole in the bottom to allow carbon dioxide to escape. The mycarium's climate control system is as follows:

@@ -11,7 +11,7 @@ monitor conditions, view historical graphs, and adjust settings.
 ```text
 mycarium/
 ├── firmware/   ESP32 sensor firmware (Rust, ESP-IDF)
-├── server/     MQTT broker, persistence service, REST API (TBD stack)
+├── server/     MQTT persistence service + REST API (TypeScript/Fastify/SQLite)
 ├── app/        Progressive Web App (TBD stack)
 └── docs/       Specs, design notes, coding guidelines
 ```
@@ -35,7 +35,7 @@ The cross-component API. All three components depend on these topics:
 | Component  | Stack                  | Package Manager |
 |------------|------------------------|-----------------|
 | Firmware   | Rust, ESP-IDF (esp-rs) | cargo           |
-| Server     | TBD                    | TBD             |
+| Server     | TypeScript, Fastify, SQLite (drizzle-orm) | pnpm |
 | App        | TBD                    | pnpm            |
 
 ## Definition of Done

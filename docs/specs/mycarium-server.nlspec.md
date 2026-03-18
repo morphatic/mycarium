@@ -493,24 +493,24 @@ already a sensitive payload (it contains a session token).
 
 ### Message Persistence
 
-- [ ] Service subscribes to `mycarium/status/#` with service-account certificate
-- [ ] Each status message parsed and written to database (device ID, ts, temp, humidity, heater, fogger)
-- [ ] Service starts on boot (systemd) and reconnects to broker on disconnection
-- [ ] Malformed messages logged and skipped without crashing
-- [ ] Retention policy drops records older than configurable threshold (default 90 days)
+- [x] Service subscribes to `mycarium/status/#` with service-account certificate
+- [x] Each status message parsed and written to database (device ID, ts, temp, humidity, heater, fogger)
+- [x] Service starts on boot (systemd) and reconnects to broker on disconnection
+- [x] Malformed messages logged and skipped without crashing
+- [x] Retention policy drops records older than configurable threshold (default 90 days)
 
 ### REST API
 
-- [ ] User registration with email and password
-- [ ] Login returns session token, client certificate, and client key
-- [ ] Unauthenticated requests to protected endpoints return 401
-- [ ] GET /devices returns user's devices
-- [ ] POST /devices claims a device (pending status)
-- [ ] PATCH /devices/{id} updates device name
-- [ ] DELETE /devices/{id} removes ownership
-- [ ] Pending devices transition to active when status messages are received
-- [ ] GET /devices/{id}/history returns readings filtered by time range
-- [ ] Only the owning user can access a device's data or controls (403 otherwise)
+- [x] User registration with email and password
+- [x] Login returns session token, client certificate, and client key
+- [x] Unauthenticated requests to protected endpoints return 401
+- [x] GET /devices returns user's devices
+- [x] POST /devices claims a device (pending status)
+- [x] PATCH /devices/{id} updates device name
+- [x] DELETE /devices/{id} removes ownership
+- [x] Pending devices transition to active when status messages are received
+- [x] GET /devices/{id}/history returns readings filtered by time range
+- [x] Only the owning user can access a device's data or controls (403 otherwise)
 
 ### Deployment
 
