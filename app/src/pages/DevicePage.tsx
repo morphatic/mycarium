@@ -9,6 +9,7 @@ import { ActuatorBadge } from "../components/ActuatorBadge";
 import { ThresholdEditor } from "../components/ThresholdEditor";
 import { ModeSwitch } from "../components/ModeSwitch";
 import { StandbyButton } from "../components/StandbyButton";
+import { HistoryChart } from "../components/HistoryChart";
 import type { ControlMessage } from "../types";
 
 export function DevicePage() {
@@ -223,6 +224,11 @@ export function DevicePage() {
             </div>
           </>
         )}
+
+        {/* History Chart */}
+        <div className="border-t pt-4">
+          <HistoryChart deviceDbId={device.id} />
+        </div>
       </div>
     </div>
   );
