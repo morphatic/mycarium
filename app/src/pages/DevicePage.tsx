@@ -10,6 +10,8 @@ import { ThresholdEditor } from "../components/ThresholdEditor";
 import { ModeSwitch } from "../components/ModeSwitch";
 import { StandbyButton } from "../components/StandbyButton";
 import { HistoryChart } from "../components/HistoryChart";
+import { AlertBanner } from "../components/AlertBanner";
+import { useAlerts } from "../hooks/useAlerts";
 import type { ControlMessage } from "../types";
 
 export function DevicePage() {
@@ -31,6 +33,7 @@ export function DevicePage() {
     deviceId ? s.statuses[deviceId] : undefined,
   );
   const liveness = useLiveness(deviceId ?? "");
+  const alerts = useAlerts(deviceId ?? "");
 
   if (!device) {
     return <p className="p-4 text-gray-500">Device not found.</p>;
@@ -145,6 +148,8 @@ export function DevicePage() {
             </button>
           </div>
         )}
+
+        {alerts.length > 0 && <AlertBanner alerts={alerts} />}
 
         {/* Live Status */}
         {status && (

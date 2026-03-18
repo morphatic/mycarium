@@ -430,53 +430,53 @@ the firmware protocol.
 
 ### Authentication
 
-- [ ] Users can register with email and password
-- [ ] Users can log in and receive a session token, client cert, and client key
-- [ ] Unauthenticated users see only the login/register screen
-- [ ] Sessions persist across browser restarts until logout or token expiry
+- [x] Users can register with email and password
+- [x] Users can log in and receive a session token, client cert, and client key
+- [x] Unauthenticated users see only the login/register screen
+- [x] Sessions persist across browser restarts until logout or token expiry
 
 ### Device Ownership
 
-- [ ] Users can claim a device by entering its device ID
-- [ ] Newly claimed devices appear in "pending" state
-- [ ] Devices transition to "active" when the server confirms status messages are being received
-- [ ] Only the owning user can view or control a device
-- [ ] Users can remove a device from their account
-- [ ] Users can assign a human-readable name to a device
+- [x] Users can claim a device by entering its device ID
+- [x] Newly claimed devices appear in "pending" state
+- [x] Devices transition to "active" when the server confirms status messages are being received
+- [x] Only the owning user can view or control a device
+- [x] Users can remove a device from their account
+- [x] Users can assign a human-readable name to a device
 
 ### Real-Time Monitoring
 
-- [ ] App connects to MQTT broker over WSS with mTLS using the user's client certificate
-- [ ] App subscribes to status topics for all claimed devices
-- [ ] Dashboard displays current temperature, humidity, heater/fogger state, and mode
-- [ ] Dashboard updates in real time as MQTT messages arrive
-- [ ] Devices with no status message in 2x poll interval are shown as "offline"
-- [ ] WSS connection re-establishes automatically after disconnection
+- [x] App connects to MQTT broker over WSS with mTLS using the user's client certificate
+- [x] App subscribes to status topics for all claimed devices
+- [x] Dashboard displays current temperature, humidity, heater/fogger state, and mode
+- [x] Dashboard updates in real time as MQTT messages arrive
+- [x] Devices with no status message in 2x poll interval are shown as "offline"
+- [x] WSS connection re-establishes automatically after disconnection
 
 ### Historical Data
 
-- [ ] Temperature and humidity displayed as line graphs
-- [ ] User can select time range: last hour, 24h, 7d, 30d
-- [ ] Graph data is fetched from server API
-- [ ] Heater/fogger events can be overlaid on graphs
+- [x] Temperature and humidity displayed as line graphs
+- [x] User can select time range: last hour, 24h, 7d, 30d
+- [x] Graph data is fetched from server API
+- [x] Heater/fogger events can be overlaid on graphs
 
 ### Device Control
 
-- [ ] User can view and edit temperature thresholds (max > min validated)
-- [ ] User can view and edit humidity thresholds (max > min validated)
-- [ ] Threshold changes are published as MQTT control messages
-- [ ] User can switch heater and fogger between auto and manual mode
-- [ ] In manual mode, user can toggle heater/fogger on/off
-- [ ] Standby mode sets both actuators to manual-off without changing thresholds
-- [ ] Exiting standby restores auto mode
-- [ ] All control actions give immediate visual feedback
-- [ ] Confirmed state reflects the next device status message
+- [x] User can view and edit temperature thresholds (max > min validated)
+- [x] User can view and edit humidity thresholds (max > min validated)
+- [x] Threshold changes are published as MQTT control messages
+- [x] User can switch heater and fogger between auto and manual mode
+- [x] In manual mode, user can toggle heater/fogger on/off
+- [x] Standby mode sets both actuators to manual-off without changing thresholds
+- [x] Exiting standby restores auto mode
+- [x] All control actions give immediate visual feedback
+- [x] Confirmed state reflects the next device status message
 
 ### Notifications
 
-- [ ] In-app alert when device is offline
-- [ ] In-app alert when temperature is out of configured range
-- [ ] In-app alert when humidity is out of configured range
+- [x] In-app alert when device is offline
+- [x] In-app alert when temperature is out of configured range
+- [x] In-app alert when humidity is out of configured range
 
 ### Integration
 

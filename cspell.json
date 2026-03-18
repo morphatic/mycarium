@@ -32,10 +32,16 @@
     "unparseable",
     "virtualenvs",
     "WROOM",
-    "Xtensa"
+    "Xtensa",
+    "chartjs",
+    "tailwindcss",
+    "zustand",
+    "vitejs"
   ],
   "ignorePaths": [
     "docs/rust-guidelines.md",
-    "**/target/**"
+    "**/target/**",
+    "**/node_modules/**",
+    "**/pnpm-lock.yaml"
   ]
 }
