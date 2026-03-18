@@ -6,6 +6,7 @@ import type { Config } from "../config.js";
 import authPlugin from "./plugins/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
+import { deviceRoutes } from "./routes/devices.js";
 
 export async function buildServer(db: AppDb, config?: Config) {
   const app = Fastify({ logger: true });
@@ -24,6 +25,7 @@ export async function buildServer(db: AppDb, config?: Config) {
   if (config) {
     await app.register(authRoutes(config));
   }
+  await app.register(deviceRoutes);
 
   return app;
 }
