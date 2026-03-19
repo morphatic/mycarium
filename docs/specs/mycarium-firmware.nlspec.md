@@ -41,9 +41,10 @@ this specification.
     - [10.1 Compile-Time Secrets](#101-compile-time-secrets)
     - [10.2 Named Constants](#102-named-constants)
     - [10.3 Build Toolchain](#103-build-toolchain)
-  - [11. Out of Scope](#11-out-of-scope)
-  - [12. Design Decision Rationale](#12-design-decision-rationale)
-  - [13. Definition of Done](#13-definition-of-done)
+  - [11. Security](#11-security)
+  - [12. Out of Scope](#12-out-of-scope)
+  - [13. Design Decision Rationale](#13-design-decision-rationale)
+  - [14. Definition of Done](#14-definition-of-done)
 
 ---
 
@@ -412,7 +413,39 @@ The firmware compiles and flashes to a generic ESP32-WROOM-32 dev board
 using the ESP-IDF toolchain with Rust (via `esp-idf-hal` / `esp-idf-svc`
 or equivalent Rust ESP32 crate ecosystem).
 
-## 11. Out of Scope
+## 11. Security
+
+### 11.1 Threshold Range Validation
+
+Control messages currently validate ordering (max > min) but accept any
+numeric value. The firmware should reject threshold values outside
+reasonable physical ranges to prevent misconfiguration:
+
+- Temperature: 0–50°C
+- Humidity: 0–100%
+
+Additionally, a minimum gap between min and max should be enforced to
+prevent rapid actuator cycling from sensor noise. Based on the BME280
+accuracy (±1.0°C, ±3%RH), the minimum gap should be 2°C for temperature
+and 6% for humidity.
+
+### 11.2 Control Message Rate Limiting
+
+The firmware should ignore control messages received within a short
+window (e.g. 1 second) of the previous control message to prevent rapid
+toggling from a flood of commands.
+
+### 11.3 Immediate Status Response
+
+When the firmware receives and applies a control message, it should
+publish an immediate status message reflecting the new state rather than
+waiting for the next 30-second poll cycle. This provides faster UI
+feedback and confirms to the app that the command was received and
+applied.
+
+---
+
+## 12. Out of Scope
 
 **Over-the-air (OTA) updates.** Updating firmware without physical
 access. Excluded because the initial deployment uses a single device with
@@ -435,7 +468,7 @@ mode to NVS so they survive a reboot. Currently, the device boots with
 compiled defaults and receives configuration from the broker. Extension
 point: ESP-IDF NVS API to persist last-known-good configuration.
 
-## 12. Design Decision Rationale
+## 13. Design Decision Rationale
 
 **Why mutual TLS instead of username/password authentication?** mTLS
 provides strong device identity without transmitting credentials over
@@ -469,7 +502,7 @@ thresholds. A skipped cycle (30 seconds) is a small gap; sustained
 sensor failure is a hardware problem that should be diagnosed, not
 masked.
 
-## 13. Definition of Done
+## 14. Definition of Done
 
 - [x] BME280 is detected at boot on either I2C pin ordering (21/22 or 22/21)
 - [x] Boot halts with a serial error if BME280 is not detected on any pin combination
@@ -501,3 +534,10 @@ masked.
 - [x] Named constants are defined at the top of the main source file
 - [x] Firmware compiles and flashes to ESP32-WROOM-32 via ESP-IDF with Rust
 - [x] Integration: device boots, connects WiFi, syncs NTP, connects MQTT, publishes status, receives and applies a control message, and reflects the new state in the next published status message
+
+### Security and Responsiveness (deferred)
+
+- [ ] Reject threshold values outside reasonable ranges (temp 0–50°C, humidity 0–100%)
+- [ ] Enforce minimum threshold gap (2°C for temperature, 6% for humidity)
+- [ ] Rate-limit control messages (ignore commands within 1s of previous)
+- [ ] Publish immediate status message after applying a control message (instead of waiting for next poll cycle)

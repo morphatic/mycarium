@@ -21,9 +21,10 @@ to understand the contracts the server provides.
 - [6. Message Persistence Service](#6-message-persistence-service)
 - [7. REST API](#7-rest-api)
 - [8. Deployment and Operations](#8-deployment-and-operations)
-- [9. Out of Scope](#9-out-of-scope)
-- [10. Design Decision Rationale](#10-design-decision-rationale)
-- [11. Definition of Done](#11-definition-of-done)
+- [9. Security Hardening](#9-security-hardening)
+- [10. Out of Scope](#10-out-of-scope)
+- [11. Design Decision Rationale](#11-design-decision-rationale)
+- [12. Definition of Done](#12-definition-of-done)
 
 ---
 
@@ -397,7 +398,68 @@ stopped, restarted, and status-checked.
 
 ---
 
-## 9. Out of Scope
+## 9. Security Hardening
+
+### 9.1 Rate Limiting
+
+Authentication endpoints (`/auth/login`, `/auth/register`) must be rate
+limited to prevent brute-force attacks. Recommended limits:
+
+- `/auth/login`: 5 requests per minute per IP
+- `/auth/register`: 3 requests per minute per IP
+
+Rate limiting is implemented at the API level using Fastify middleware.
+
+### 9.2 CORS Restriction
+
+The API's CORS policy should restrict allowed origins to the known app
+domain (e.g. `https://mycarium.morphatic.com`) rather than allowing any
+origin.
+
+### 9.3 HSTS and HTTPS
+
+The Nginx reverse proxy must send the `Strict-Transport-Security` header
+with a long max-age (e.g. 1 year) to prevent protocol downgrade attacks.
+HTTP requests should be redirected to HTTPS.
+
+### 9.4 Content Security Policy
+
+The Nginx reverse proxy must send a `Content-Security-Policy` header
+that restricts script sources to `'self'`, connection sources to the app
+origin and WSS endpoint, and blocks inline scripts. This protects
+against XSS attacks that could steal session tokens from localStorage.
+
+### 9.5 MQTT Topic Authorization
+
+Currently, any authenticated MQTT client can subscribe to any topic and
+publish to any control topic. For a multi-user deployment, Mosquitto
+should be configured with ACLs or a dynamic security plugin that
+restricts clients to their own device topics. For the current
+single-user deployment, this is documented as a known limitation.
+
+### 9.6 Device Name Validation
+
+The API should enforce a maximum length on device names (e.g. 64
+characters) to prevent abuse.
+
+### 9.7 Session Token Management
+
+Session tokens are opaque 256-bit random values with a configurable TTL
+(default 30 days). Token rotation on sensitive operations is not
+implemented but should be considered for future versions.
+
+### 9.8 Client Certificate in Login Response
+
+The login response currently returns the user's client certificate and
+private key. Since the browser MQTT connection uses the Nginx app-proxy
+cert (not the user's cert), sending the private key to the browser is
+unnecessary and increases the blast radius of an XSS attack. The login
+response should omit `clientCert` and `clientKey`, or this design
+decision should be revisited when browser-side mTLS becomes feasible.
+
+---
+
+## 10. Out of Scope
 
 **High availability / clustering.** Running multiple broker or API
 instances behind a load balancer. Excluded because the system serves a
@@ -411,9 +473,10 @@ re-signs certificates approaching expiry.
 
 **ACL / topic-level authorization.** Restricting which clients can
 publish or subscribe to which topics. Currently, any authenticated
-client can access any topic. Excluded to keep the broker config simple
-for a single-household deployment. Extension point: Mosquitto supports
-ACL files and dynamic security plugins that can enforce per-user topic
+client can access any topic. Deferred for the single-household
+deployment but documented as a security hardening item (see Section 9.5)
+for multi-user scenarios. Extension point: Mosquitto supports ACL files
+and dynamic security plugins that can enforce per-user topic
 restrictions.
 
 **Push notifications.** Server-initiated notifications to mobile devices
@@ -433,7 +496,7 @@ device and time range, and delete by age.
 
 ---
 
-## 10. Design Decision Rationale
+## 11. Design Decision Rationale
 
 **Why Mosquitto instead of a cloud-managed MQTT broker?** Mosquitto is
 lightweight, well-documented, and runs on a single small VPS. A
@@ -468,7 +531,7 @@ already a sensitive payload (it contains a session token).
 
 ---
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 ### MQTT Broker
 
@@ -517,6 +580,16 @@ already a sensitive payload (it contains a session token).
 - [ ] All services run on DigitalOcean Droplet with Ubuntu Server
 - [ ] Ports 8883, 8083, 443, 22 are open; all others closed
 - [ ] All three services start on boot and can be managed independently
+
+### Security Hardening
+
+- [ ] Rate limiting on `/auth/login` (5 req/min per IP) and `/auth/register` (3 req/min per IP)
+- [ ] CORS origin restricted to app domain instead of `origin: true`
+- [ ] HSTS header sent by Nginx with max-age of at least 1 year
+- [ ] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS)
+- [ ] Device name maximum length enforced server-side (64 characters)
+- [ ] Login response omits `clientKey` (or documents why it is needed)
+- [ ] MQTT ACL restricts topic access per user (deferred for multi-user deployment)
 
 ### Integration
 

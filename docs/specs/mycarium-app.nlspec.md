@@ -23,9 +23,10 @@ with implementing the app from this specification.
 - [8. Historical Data](#8-historical-data)
 - [9. Device Control](#9-device-control)
 - [10. Notifications and Alerts](#10-notifications-and-alerts)
-- [11. Out of Scope](#11-out-of-scope)
-- [12. Design Decision Rationale](#12-design-decision-rationale)
-- [13. Definition of Done](#13-definition-of-done)
+- [11. Security](#11-security)
+- [12. Out of Scope](#12-out-of-scope)
+- [13. Design Decision Rationale](#13-design-decision-rationale)
+- [14. Definition of Done](#14-definition-of-done)
 
 ---
 
@@ -363,7 +364,60 @@ serve as the trigger points for a future notification system.
 
 ---
 
-## 11. Out of Scope
+## 11. Security
+
+### 11.1 Token and Session Handling
+
+The app must handle expired or revoked sessions gracefully. When any API
+request returns HTTP 401, the app clears the stored session and redirects
+the user to the login screen. There is no silent token refresh; the user
+must log in again.
+
+### 11.2 Client Certificate Storage
+
+The server currently returns a client certificate and private key on
+login. These are not used by the browser (the Nginx proxy handles mTLS
+to Mosquitto via an app-proxy cert). The app should not store credentials
+it does not use. If a future design requires browser-side mTLS, this
+decision should be revisited with a more secure storage mechanism.
+
+### 11.3 HTTPS Enforcement
+
+The app relies on the server (Nginx) to enforce HTTPS via HSTS headers
+and HTTP-to-HTTPS redirects. The app itself does not validate the
+protocol of API URLs at runtime.
+
+### 11.4 Content Security Policy
+
+A Content Security Policy (CSP) must be configured on the server (Nginx)
+to restrict script sources to `'self'`, connect sources to the app
+origin and WSS endpoint, and block inline scripts. This is the primary
+defense against XSS, which is critical because session tokens are stored
+in localStorage.
+
+### 11.5 Service Worker Cache Policy
+
+The PWA service worker uses NetworkFirst for API responses. Cached
+responses must have a maximum age (TTL) to prevent stale data from being
+served indefinitely. Auth-related responses should not be cached.
+
+### 11.6 Input Validation
+
+All user-facing inputs (email, password, device name, threshold values)
+are validated client-side for immediate feedback. The server is the
+authoritative validator; client-side checks are a convenience, not a
+security boundary.
+
+### 11.7 Minimum Threshold Range
+
+Threshold controls enforce a minimum gap between min and max values to
+prevent rapid actuator cycling caused by sensor measurement noise. The
+BME280 sensor has accuracy of ±1.0°C and ±3%RH, so minimum ranges are
+2°C (3.6°F) for temperature and 6% for humidity.
+
+---
+
+## 12. Out of Scope
 
 **Push notifications.** Delivering alerts when the app is not open.
 Excluded because it requires server-side push infrastructure (web push,
@@ -397,7 +451,7 @@ Extension point: a user settings API and a client-side display toggle.
 
 ---
 
-## 12. Design Decision Rationale
+## 13. Design Decision Rationale
 
 **Why a PWA instead of a native app or Tauri hybrid?** A PWA is
 installable on both mobile and desktop, requires no app store, and can
@@ -426,7 +480,7 @@ the firmware protocol.
 
 ---
 
-## 13. Definition of Done
+## 14. Definition of Done
 
 ### Authentication
 
@@ -477,6 +531,14 @@ the firmware protocol.
 - [x] In-app alert when device is offline
 - [x] In-app alert when temperature is out of configured range
 - [x] In-app alert when humidity is out of configured range
+
+### Security
+
+- [ ] API client auto-logs out on 401 response (clears session, redirects to login)
+- [ ] Client certificate and private key are not stored in localStorage (removed from login response handling)
+- [ ] Service worker API cache has a TTL (e.g. 5 minutes) and excludes auth endpoints
+- [ ] Threshold controls enforce minimum range: 2°C / 3.6°F for temperature, 6% for humidity
+- [ ] Device name input has a maximum length enforced client-side
 
 ### Integration
 
