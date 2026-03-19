@@ -22,24 +22,24 @@ export function AppHeader() {
           Mycarium
         </h1>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           onClick={toggleUnit}
-          className="text-sm text-myc-cream/80 hover:text-myc-cream dark:text-myc-muted-dark dark:hover:text-myc-accent"
+          className="text-sm font-medium px-2.5 py-1 rounded border border-myc-cream/30 dark:border-myc-teal-deep/60 text-myc-cream hover:bg-myc-cream/10 dark:text-myc-muted-dark dark:hover:bg-myc-teal-deep/30 dark:hover:text-myc-accent transition-colors"
           aria-label={`Switch to ${unit === "C" ? "Fahrenheit" : "Celsius"}`}
         >
           &deg;{unit}
         </button>
         <button
           onClick={toggleTheme}
-          className="text-sm text-myc-cream/80 hover:text-myc-cream dark:text-myc-muted-dark dark:hover:text-myc-accent"
+          className="text-sm px-2.5 py-1 rounded border border-myc-cream/30 dark:border-myc-teal-deep/60 text-myc-cream hover:bg-myc-cream/10 dark:text-myc-muted-dark dark:hover:bg-myc-teal-deep/30 dark:hover:text-myc-accent transition-colors"
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
         >
-          {theme === "dark" ? "Light" : "Dark"}
+          {theme === "dark" ? "\u2600\uFE0F" : "\u{1F319}"}
         </button>
         <button
           onClick={logout}
-          className="text-sm bg-myc-brown-warm/60 hover:bg-myc-brown-warm/80 dark:bg-myc-teal-deep/50 dark:hover:bg-myc-teal-deep px-3 py-1 rounded"
+          className="text-sm bg-myc-brown-warm/60 hover:bg-myc-brown-warm/80 dark:bg-myc-teal-deep/50 dark:hover:bg-myc-teal-deep px-3 py-1 rounded transition-colors"
         >
           Log out
         </button>
