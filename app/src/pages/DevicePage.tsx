@@ -20,6 +20,8 @@ interface Overrides {
   fogger_mode?: "auto" | "manual";
   heater_on?: boolean;
   fogger_on?: boolean;
+  temp_pending?: boolean;
+  hum_pending?: boolean;
 }
 
 export function DevicePage() {
@@ -89,6 +91,8 @@ export function DevicePage() {
     if (msg.fogger_mode !== undefined) newOverrides.fogger_mode = msg.fogger_mode;
     if (msg.heater_on !== undefined) newOverrides.heater_on = msg.heater_on;
     if (msg.fogger_on !== undefined) newOverrides.fogger_on = msg.fogger_on;
+    if (msg.temp_min !== undefined || msg.temp_max !== undefined) newOverrides.temp_pending = true;
+    if (msg.hum_min !== undefined || msg.hum_max !== undefined) newOverrides.hum_pending = true;
     setOverrides(newOverrides);
 
     // Auto-clear after 60s if device never confirms
@@ -112,6 +116,8 @@ export function DevicePage() {
   const hasPending = Object.keys(overrides).length > 0;
   const heaterPending = overrides.heater_mode !== undefined || overrides.heater_on !== undefined;
   const foggerPending = overrides.fogger_mode !== undefined || overrides.fogger_on !== undefined;
+  const tempThresholdPending = overrides.temp_pending === true;
+  const humThresholdPending = overrides.hum_pending === true;
 
   const handleRename = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +331,7 @@ export function DevicePage() {
               unit={`\u00B0${unit}`}
               min={unit === "F" ? toFahrenheit(tempMinC) : tempMinC}
               max={unit === "F" ? toFahrenheit(tempMaxC) : tempMaxC}
+              pending={tempThresholdPending}
               onSave={(min, max) =>
                 sendControl({
                   temp_min: unit === "F" ? toCelsius(min) : min,
@@ -338,6 +345,7 @@ export function DevicePage() {
               unit="%"
               min={humMin}
               max={humMax}
+              pending={humThresholdPending}
               onSave={(min, max) =>
                 sendControl({ hum_min: min, hum_max: max })
               }
@@ -367,7 +375,13 @@ export function DevicePage() {
 
       {/* History Chart */}
       <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4">
-        <HistoryChart deviceDbId={device.id} />
+        <HistoryChart
+          deviceDbId={device.id}
+          tempMin={tempMinC}
+          tempMax={tempMaxC}
+          humMin={humMin}
+          humMax={humMax}
+        />
       </div>
     </div>
   );

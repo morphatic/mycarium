@@ -34,6 +34,10 @@ ChartJS.register(
 
 interface HistoryChartProps {
   deviceDbId: number;
+  tempMin?: number;
+  tempMax?: number;
+  humMin?: number;
+  humMax?: number;
 }
 
 function formatTime(ts: number): string {
@@ -60,6 +64,7 @@ function buildChartData(
   readings: ReadingRow[],
   isDark: boolean,
   unit: "C" | "F",
+  thresholds?: { tempMin: number; tempMax: number; humMin: number; humMax: number },
 ): ChartData<"line", (number | null)[], string> {
   const labels = readings.map((r) => formatTime(r.ts));
   const tempData = readings.map((r) =>
@@ -67,84 +72,170 @@ function buildChartData(
   );
   const humidityData = readings.map((r) => r.humidity);
 
-  // Heater event markers on the temperature line
+  // Split heater events into ON and OFF datasets for distinct legend entries
   const heaterTransitions = findTransitions(readings.map((r) => r.heaterOn));
-  const heaterPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const heaterOnPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const heaterOffPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const heaterOnRadii: number[] = new Array(readings.length).fill(0);
+  const heaterOffRadii: number[] = new Array(readings.length).fill(0);
   for (const t of heaterTransitions) {
-    heaterPoints[t.index] = tempData[t.index]!;
+    if (t.turnedOn) {
+      heaterOnPoints[t.index] = tempData[t.index]!;
+      heaterOnRadii[t.index] = 6;
+    } else {
+      heaterOffPoints[t.index] = tempData[t.index]!;
+      heaterOffRadii[t.index] = 6;
+    }
   }
 
-  // Fogger event markers on the humidity line
+  // Split fogger events into ON and OFF datasets
   const foggerTransitions = findTransitions(readings.map((r) => r.foggerOn));
-  const foggerPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const foggerOnPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const foggerOffPoints: (number | null)[] = new Array(readings.length).fill(null);
+  const foggerOnRadii: number[] = new Array(readings.length).fill(0);
+  const foggerOffRadii: number[] = new Array(readings.length).fill(0);
   for (const t of foggerTransitions) {
-    foggerPoints[t.index] = humidityData[t.index]!;
+    if (t.turnedOn) {
+      foggerOnPoints[t.index] = humidityData[t.index]!;
+      foggerOnRadii[t.index] = 6;
+    } else {
+      foggerOffPoints[t.index] = humidityData[t.index]!;
+      foggerOffRadii[t.index] = 6;
+    }
   }
 
-  // Point styles: filled triangle for ON, empty triangle-down for OFF
-  const heaterPointStyles = heaterTransitions.map((t) =>
-    t.turnedOn ? "triangle" as const : "rectRot" as const,
+  const datasets: ChartData<"line", (number | null)[], string>["datasets"] = [];
+
+  // Range band datasets (added first so they render behind data lines)
+  if (thresholds) {
+    const tMin = unit === "F" ? toFahrenheit(thresholds.tempMin) : thresholds.tempMin;
+    const tMax = unit === "F" ? toFahrenheit(thresholds.tempMax) : thresholds.tempMax;
+    const tempMinLine: (number | null)[] = new Array(readings.length).fill(tMin);
+    const tempMaxLine: (number | null)[] = new Array(readings.length).fill(tMax);
+    const humMinLine: (number | null)[] = new Array(readings.length).fill(thresholds.humMin);
+    const humMaxLine: (number | null)[] = new Array(readings.length).fill(thresholds.humMax);
+
+    datasets.push(
+      {
+        label: `Temp range`,
+        data: tempMinLine,
+        borderColor: isDark ? "rgba(148,90,58,0.4)" : "rgba(220,38,38,0.3)",
+        borderWidth: 1,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: false,
+        yAxisID: "yTemp",
+      },
+      {
+        label: "_tempMax",
+        data: tempMaxLine,
+        borderColor: isDark ? "rgba(148,90,58,0.4)" : "rgba(220,38,38,0.3)",
+        borderWidth: 1,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: "-1",
+        backgroundColor: isDark ? "rgba(148,90,58,0.06)" : "rgba(220,38,38,0.06)",
+        yAxisID: "yTemp",
+      },
+      {
+        label: `Humidity range`,
+        data: humMinLine,
+        borderColor: isDark ? "rgba(9,250,204,0.3)" : "rgba(37,99,235,0.3)",
+        borderWidth: 1,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: false,
+        yAxisID: "yHumidity",
+      },
+      {
+        label: "_humMax",
+        data: humMaxLine,
+        borderColor: isDark ? "rgba(9,250,204,0.3)" : "rgba(37,99,235,0.3)",
+        borderWidth: 1,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: "-1",
+        backgroundColor: isDark ? "rgba(9,250,204,0.06)" : "rgba(37,99,235,0.06)",
+        yAxisID: "yHumidity",
+      },
+    );
+  }
+
+  // Main data lines
+  datasets.push(
+    {
+      label: `Temp (\u00B0${unit})`,
+      data: tempData,
+      borderColor: isDark ? "#945a3a" : "#dc2626",
+      backgroundColor: isDark ? "rgba(148,90,58,0.1)" : "rgba(220,38,38,0.1)",
+      tension: 0.3,
+      pointRadius: 0,
+      yAxisID: "yTemp",
+    },
+    {
+      label: "Humidity (%)",
+      data: humidityData,
+      borderColor: isDark ? "#09facc" : "#2563eb",
+      backgroundColor: isDark ? "rgba(9,250,204,0.1)" : "rgba(37,99,235,0.1)",
+      tension: 0.3,
+      pointRadius: 0,
+      yAxisID: "yHumidity",
+    },
   );
-  const heaterRadii: number[] = new Array(readings.length).fill(0);
-  const heaterStyles: string[] = new Array(readings.length).fill("circle");
-  for (let i = 0; i < heaterTransitions.length; i++) {
-    const t = heaterTransitions[i]!;
-    heaterRadii[t.index] = 6;
-    heaterStyles[t.index] = heaterPointStyles[i]!;
-  }
 
-  const foggerRadii: number[] = new Array(readings.length).fill(0);
-  const foggerStyles: string[] = new Array(readings.length).fill("circle");
-  for (const t of foggerTransitions) {
-    foggerRadii[t.index] = 6;
-    foggerStyles[t.index] = t.turnedOn ? "triangle" : "rectRot";
-  }
+  // Event marker datasets — split by on/off for clear legend
+  datasets.push(
+    {
+      label: "Heater ON",
+      data: heaterOnPoints,
+      borderColor: isDark ? "#ea580c" : "#ea580c",
+      backgroundColor: isDark ? "#ea580c" : "#ea580c",
+      pointRadius: heaterOnRadii,
+      pointStyle: "triangle",
+      showLine: false,
+      yAxisID: "yTemp",
+      spanGaps: false,
+    },
+    {
+      label: "Heater OFF",
+      data: heaterOffPoints,
+      borderColor: isDark ? "#ea580c" : "#ea580c",
+      backgroundColor: isDark ? "#ea580c" : "#ea580c",
+      pointRadius: heaterOffRadii,
+      pointStyle: "rectRot",
+      showLine: false,
+      yAxisID: "yTemp",
+      spanGaps: false,
+    },
+    {
+      label: "Fogger ON",
+      data: foggerOnPoints,
+      borderColor: isDark ? "#23bba7" : "#3b82f6",
+      backgroundColor: isDark ? "#23bba7" : "#3b82f6",
+      pointRadius: foggerOnRadii,
+      pointStyle: "triangle",
+      showLine: false,
+      yAxisID: "yHumidity",
+      spanGaps: false,
+    },
+    {
+      label: "Fogger OFF",
+      data: foggerOffPoints,
+      borderColor: isDark ? "#23bba7" : "#3b82f6",
+      backgroundColor: isDark ? "#23bba7" : "#3b82f6",
+      pointRadius: foggerOffRadii,
+      pointStyle: "rectRot",
+      showLine: false,
+      yAxisID: "yHumidity",
+      spanGaps: false,
+    },
+  );
 
-  return {
-    labels,
-    datasets: [
-      {
-        label: `Temp (\u00B0${unit})`,
-        data: tempData,
-        borderColor: isDark ? "#945a3a" : "#dc2626",
-        backgroundColor: isDark ? "rgba(148,90,58,0.1)" : "rgba(220,38,38,0.1)",
-        tension: 0.3,
-        pointRadius: 0,
-        yAxisID: "yTemp",
-      },
-      {
-        label: "Humidity (%)",
-        data: humidityData,
-        borderColor: isDark ? "#09facc" : "#2563eb",
-        backgroundColor: isDark ? "rgba(9,250,204,0.1)" : "rgba(37,99,235,0.1)",
-        tension: 0.3,
-        pointRadius: 0,
-        yAxisID: "yHumidity",
-      },
-      {
-        label: "Heater event",
-        data: heaterPoints,
-        borderColor: isDark ? "#ea580c" : "#ea580c",
-        backgroundColor: isDark ? "#ea580c" : "#ea580c",
-        pointRadius: heaterRadii,
-        pointStyle: heaterStyles,
-        showLine: false,
-        yAxisID: "yTemp",
-        spanGaps: false,
-      },
-      {
-        label: "Fogger event",
-        data: foggerPoints,
-        borderColor: isDark ? "#23bba7" : "#3b82f6",
-        backgroundColor: isDark ? "#23bba7" : "#3b82f6",
-        pointRadius: foggerRadii,
-        pointStyle: foggerStyles,
-        showLine: false,
-        yAxisID: "yHumidity",
-        spanGaps: false,
-      },
-    ],
-  };
+  return { labels, datasets };
 }
 
 function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line"> {
@@ -178,21 +269,30 @@ function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line
     plugins: {
       legend: {
         position: "bottom",
-        labels: { boxWidth: 12, padding: 8, color: textColor, usePointStyle: true },
+        labels: {
+          boxWidth: 12,
+          padding: 8,
+          color: textColor,
+          usePointStyle: true,
+          filter: (item) => {
+            // Hide internal datasets (prefixed with _)
+            return !item.text.startsWith("_");
+          },
+        },
       },
       tooltip: {
         callbacks: {
           label: (ctx) => {
-            if (ctx.dataset.label === "Heater event") {
-              return `Heater event`;
-            }
-            if (ctx.dataset.label === "Fogger event") {
-              return `Fogger event`;
-            }
+            const lbl = ctx.dataset.label ?? "";
+            // Skip internal range band datasets in tooltip
+            if (lbl.startsWith("_")) return "";
+            if (lbl === "Temp range" || lbl === "Humidity range") return "";
+            if (lbl.startsWith("Heater")) return `${lbl}`;
+            if (lbl.startsWith("Fogger")) return `${lbl}`;
             const val = ctx.parsed.y;
             if (val == null) return "";
-            if (ctx.dataset.yAxisID === "yTemp") return `${ctx.dataset.label}: ${val.toFixed(1)}\u00B0${unit}`;
-            return `${ctx.dataset.label}: ${val.toFixed(1)}%`;
+            if (ctx.dataset.yAxisID === "yTemp") return `${lbl}: ${val.toFixed(1)}\u00B0${unit}`;
+            return `${lbl}: ${val.toFixed(1)}%`;
           },
         },
       },
@@ -200,7 +300,7 @@ function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line
   };
 }
 
-export function HistoryChart({ deviceDbId }: HistoryChartProps) {
+export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: HistoryChartProps) {
   const theme = useThemeStore((s) => s.theme);
   const unit = useTempUnitStore((s) => s.unit);
   const isDark = theme === "dark";
@@ -210,6 +310,10 @@ export function HistoryChart({ deviceDbId }: HistoryChartProps) {
 
   // Current actuator state from last reading
   const lastReading = readings.length > 0 ? readings[readings.length - 1] : null;
+
+  const thresholds = tempMin != null && tempMax != null && humMin != null && humMax != null
+    ? { tempMin, tempMax, humMin, humMax }
+    : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -267,7 +371,7 @@ export function HistoryChart({ deviceDbId }: HistoryChartProps) {
           </p>
         ) : (
           <Line
-            data={buildChartData(readings, isDark, unit)}
+            data={buildChartData(readings, isDark, unit, thresholds)}
             options={buildChartOptions(isDark, unit)}
           />
         )}

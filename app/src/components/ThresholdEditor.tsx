@@ -5,7 +5,13 @@ interface ThresholdEditorProps {
   unit: string;
   min: number;
   max: number;
+  pending?: boolean;
   onSave: (min: number, max: number) => void;
+}
+
+/** Round to 1 decimal place and strip trailing zeroes */
+function formatVal(n: number): string {
+  return parseFloat(n.toFixed(1)).toString();
 }
 
 export function ThresholdEditor({
@@ -13,15 +19,16 @@ export function ThresholdEditor({
   unit,
   min,
   max,
+  pending,
   onSave,
 }: ThresholdEditorProps) {
-  const [minVal, setMinVal] = useState(min.toString());
-  const [maxVal, setMaxVal] = useState(max.toString());
+  const [minVal, setMinVal] = useState(formatVal(min));
+  const [maxVal, setMaxVal] = useState(formatVal(max));
   const [error, setError] = useState<string | null>(null);
 
   // Sync inputs when device reports updated bounds
-  useEffect(() => { setMinVal(min.toString()); }, [min]);
-  useEffect(() => { setMaxVal(max.toString()); }, [max]);
+  useEffect(() => { setMinVal(formatVal(min)); }, [min]);
+  useEffect(() => { setMaxVal(formatVal(max)); }, [max]);
 
   const handleSave = () => {
     const parsedMin = parseFloat(minVal);
@@ -42,9 +49,16 @@ export function ThresholdEditor({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-myc-text dark:text-myc-text-dark">
-        {label}
-      </p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-myc-text dark:text-myc-text-dark">
+          {label}
+        </p>
+        {pending && (
+          <span className="text-[10px] text-myc-muted dark:text-myc-muted-dark italic animate-pulse">
+            waiting for device...
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <label className="text-xs text-myc-muted dark:text-myc-muted-dark">
           Min
