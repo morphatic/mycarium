@@ -5,6 +5,8 @@ interface ThresholdEditorProps {
   unit: string;
   min: number;
   max: number;
+  /** Minimum allowed gap between min and max (accounts for sensor accuracy) */
+  minGap?: number;
   pending?: boolean;
   onSave: (min: number, max: number) => void;
 }
@@ -19,6 +21,7 @@ export function ThresholdEditor({
   unit,
   min,
   max,
+  minGap = 0,
   pending,
   onSave,
 }: ThresholdEditorProps) {
@@ -40,6 +43,10 @@ export function ThresholdEditor({
     }
     if (parsedMax <= parsedMin) {
       setError("Maximum must be greater than minimum");
+      return;
+    }
+    if (minGap > 0 && parsedMax - parsedMin < minGap) {
+      setError(`Range must be at least ${formatVal(minGap)}${unit} (sensor accuracy)`);
       return;
     }
 

@@ -331,6 +331,7 @@ export function DevicePage() {
               unit={`\u00B0${unit}`}
               min={unit === "F" ? toFahrenheit(tempMinC) : tempMinC}
               max={unit === "F" ? toFahrenheit(tempMaxC) : tempMaxC}
+              minGap={unit === "F" ? 3.6 : 2}
               pending={tempThresholdPending}
               onSave={(min, max) =>
                 sendControl({
@@ -345,6 +346,7 @@ export function DevicePage() {
               unit="%"
               min={humMin}
               max={humMax}
+              minGap={6}
               pending={humThresholdPending}
               onSave={(min, max) =>
                 sendControl({ hum_min: min, hum_max: max })

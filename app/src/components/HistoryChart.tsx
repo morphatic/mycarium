@@ -47,6 +47,62 @@ function formatTime(ts: number): string {
   });
 }
 
+/**
+ * Create a diagonal-stripe CanvasPattern for chart fill.
+ * @param color   Stripe color (CSS string)
+ * @param size    Pattern tile size in px
+ * @param width   Stripe width in px
+ * @param reverse If true, stripes go top-left to bottom-right; otherwise bottom-left to top-right
+ */
+function createStripePattern(
+  color: string,
+  size = 8,
+  width = 1.5,
+  reverse = false,
+): CanvasPattern | string {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return color;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+
+  if (reverse) {
+    // top-left to bottom-right: \\\
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(size, size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-size, 0);
+    ctx.lineTo(size, 2 * size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.lineTo(2 * size, size);
+    ctx.stroke();
+  } else {
+    // bottom-left to top-right: ///
+    ctx.beginPath();
+    ctx.moveTo(0, size);
+    ctx.lineTo(size, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-size, size);
+    ctx.lineTo(size, -size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, 2 * size);
+    ctx.lineTo(2 * size, 0);
+    ctx.stroke();
+  }
+
+  const pat = ctx.createPattern(canvas, "repeat");
+  return pat ?? color;
+}
+
 /** Find indices where a boolean value changes */
 function findTransitions(
   values: boolean[],
@@ -59,6 +115,15 @@ function findTransitions(
   }
   return transitions;
 }
+
+/**
+ * Dataset indices when thresholds are present:
+ * 0: Temp range min, 1: _tempMax, 2: Humidity range min, 3: _humMax,
+ * 4: Temp line, 5: Humidity line, 6-9: event markers
+ *
+ * Paired indices for linked legend toggling:
+ */
+const RANGE_PAIRS: Record<number, number> = { 0: 1, 2: 3 };
 
 function buildChartData(
   readings: ReadingRow[],
@@ -88,7 +153,6 @@ function buildChartData(
     }
   }
 
-  // Split fogger events into ON and OFF datasets
   const foggerTransitions = findTransitions(readings.map((r) => r.foggerOn));
   const foggerOnPoints: (number | null)[] = new Array(readings.length).fill(null);
   const foggerOffPoints: (number | null)[] = new Array(readings.length).fill(null);
@@ -115,13 +179,22 @@ function buildChartData(
     const humMinLine: (number | null)[] = new Array(readings.length).fill(thresholds.humMin);
     const humMaxLine: (number | null)[] = new Array(readings.length).fill(thresholds.humMax);
 
+    const tempStripe = createStripePattern(
+      isDark ? "rgba(148,90,58,0.35)" : "rgba(220,38,38,0.25)",
+      10, 1.5, false,  // /// direction
+    );
+    const humStripe = createStripePattern(
+      isDark ? "rgba(9,250,204,0.25)" : "rgba(37,99,235,0.2)",
+      10, 1.5, true,   // \\\ direction
+    );
+
     datasets.push(
       {
-        label: `Temp range`,
+        label: "Temp range",
         data: tempMinLine,
-        borderColor: isDark ? "rgba(148,90,58,0.4)" : "rgba(220,38,38,0.3)",
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderColor: isDark ? "rgba(148,90,58,0.6)" : "rgba(220,38,38,0.5)",
+        borderWidth: 1.5,
+        borderDash: [6, 3],
         pointRadius: 0,
         tension: 0,
         fill: false,
@@ -130,21 +203,21 @@ function buildChartData(
       {
         label: "_tempMax",
         data: tempMaxLine,
-        borderColor: isDark ? "rgba(148,90,58,0.4)" : "rgba(220,38,38,0.3)",
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderColor: isDark ? "rgba(148,90,58,0.6)" : "rgba(220,38,38,0.5)",
+        borderWidth: 1.5,
+        borderDash: [6, 3],
         pointRadius: 0,
         tension: 0,
         fill: "-1",
-        backgroundColor: isDark ? "rgba(148,90,58,0.06)" : "rgba(220,38,38,0.06)",
+        backgroundColor: tempStripe,
         yAxisID: "yTemp",
       },
       {
-        label: `Humidity range`,
+        label: "Humidity range",
         data: humMinLine,
-        borderColor: isDark ? "rgba(9,250,204,0.3)" : "rgba(37,99,235,0.3)",
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderColor: isDark ? "rgba(9,250,204,0.5)" : "rgba(37,99,235,0.45)",
+        borderWidth: 1.5,
+        borderDash: [6, 3],
         pointRadius: 0,
         tension: 0,
         fill: false,
@@ -153,13 +226,13 @@ function buildChartData(
       {
         label: "_humMax",
         data: humMaxLine,
-        borderColor: isDark ? "rgba(9,250,204,0.3)" : "rgba(37,99,235,0.3)",
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderColor: isDark ? "rgba(9,250,204,0.5)" : "rgba(37,99,235,0.45)",
+        borderWidth: 1.5,
+        borderDash: [6, 3],
         pointRadius: 0,
         tension: 0,
         fill: "-1",
-        backgroundColor: isDark ? "rgba(9,250,204,0.06)" : "rgba(37,99,235,0.06)",
+        backgroundColor: humStripe,
         yAxisID: "yHumidity",
       },
     );
@@ -274,21 +347,35 @@ function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line
           padding: 8,
           color: textColor,
           usePointStyle: true,
-          filter: (item) => {
-            // Hide internal datasets (prefixed with _)
-            return !item.text.startsWith("_");
-          },
+          filter: (item) => !item.text.startsWith("_"),
+        },
+        onClick: (_evt, legendItem, legend) => {
+          const idx = legendItem.datasetIndex;
+          if (idx == null) return;
+          const chart = legend.chart;
+
+          // Toggle the clicked dataset
+          const meta = chart.getDatasetMeta(idx);
+          meta.hidden = meta.hidden == null ? true : !meta.hidden;
+
+          // If this is a range min dataset, also toggle its paired max dataset
+          const pairedIdx = RANGE_PAIRS[idx];
+          if (pairedIdx != null) {
+            const pairedMeta = chart.getDatasetMeta(pairedIdx);
+            pairedMeta.hidden = meta.hidden;
+          }
+
+          chart.update();
         },
       },
       tooltip: {
         callbacks: {
           label: (ctx) => {
             const lbl = ctx.dataset.label ?? "";
-            // Skip internal range band datasets in tooltip
             if (lbl.startsWith("_")) return "";
             if (lbl === "Temp range" || lbl === "Humidity range") return "";
-            if (lbl.startsWith("Heater")) return `${lbl}`;
-            if (lbl.startsWith("Fogger")) return `${lbl}`;
+            if (lbl.startsWith("Heater")) return lbl;
+            if (lbl.startsWith("Fogger")) return lbl;
             const val = ctx.parsed.y;
             if (val == null) return "";
             if (ctx.dataset.yAxisID === "yTemp") return `${lbl}: ${val.toFixed(1)}\u00B0${unit}`;
@@ -308,7 +395,6 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Current actuator state from last reading
   const lastReading = readings.length > 0 ? readings[readings.length - 1] : null;
 
   const thresholds = tempMin != null && tempMax != null && humMin != null && humMax != null
