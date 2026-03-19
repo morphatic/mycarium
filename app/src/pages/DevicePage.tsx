@@ -224,6 +224,7 @@ export function DevicePage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Device name"
+              maxLength={64}
               className="flex-1 border border-myc-cream dark:border-myc-teal-deep/40 rounded px-3 py-2 bg-white dark:bg-myc-bg-dark dark:text-myc-text-dark focus:outline-none focus:ring-2 focus:ring-myc-teal dark:focus:ring-myc-accent"
               autoFocus
             />

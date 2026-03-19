@@ -7,22 +7,22 @@ import { useMqttStore } from "./stores/mqtt";
 import { useDevicesStore } from "./stores/devices";
 
 function MqttManager() {
-  const session = useAuthStore((s) => s.session);
+  const token = useAuthStore((s) => s.token);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { connect, disconnect, subscribeDevice } = useMqttStore();
   const connected = useMqttStore((s) => s.connected);
   const devices = useDevicesStore((s) => s.devices);
 
   useEffect(() => {
-    if (!isAuthenticated || !session) {
+    if (!isAuthenticated || !token) {
       disconnect();
       return;
     }
     const host = import.meta.env.VITE_MQTT_HOST as string | undefined
       ?? window.location.host;
-    connect(host, session.token);
+    connect(host, token);
     return () => disconnect();
-  }, [isAuthenticated, session, connect, disconnect]);
+  }, [isAuthenticated, token, connect, disconnect]);
 
   // Re-subscribe whenever the connection is (re)established or devices change
   useEffect(() => {

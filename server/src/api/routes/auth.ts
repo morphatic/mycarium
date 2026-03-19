@@ -13,7 +13,11 @@ const authBodySchema = z.object({
 
 export function authRoutes(config: Config): FastifyPluginAsync {
   return async (app) => {
-    app.post("/auth/register", async (request, reply) => {
+    app.post("/auth/register", {
+      config: {
+        rateLimit: { max: 3, timeWindow: "1 minute" },
+      },
+    }, async (request, reply) => {
       const body = authBodySchema.parse(request.body);
 
       let user;
@@ -46,7 +50,11 @@ export function authRoutes(config: Config): FastifyPluginAsync {
       });
     });
 
-    app.post("/auth/login", async (request, reply) => {
+    app.post("/auth/login", {
+      config: {
+        rateLimit: { max: 5, timeWindow: "1 minute" },
+      },
+    }, async (request, reply) => {
       const body = authBodySchema.parse(request.body);
 
       const user = await authenticateUser(app.db, body.email, body.password);

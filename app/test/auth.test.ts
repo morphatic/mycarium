@@ -36,7 +36,7 @@ describe("auth store", () => {
   beforeEach(() => {
     localStorage.clear();
     useAuthStore.setState({
-      session: null,
+      token: null,
       isAuthenticated: false,
       error: null,
       loading: false,
@@ -46,32 +46,34 @@ describe("auth store", () => {
 
   it("starts unauthenticated", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(useAuthStore.getState().session).toBeNull();
+    expect(useAuthStore.getState().token).toBeNull();
   });
 
-  it("login saves session to localStorage", async () => {
+  it("login saves token to localStorage (without cert/key)", async () => {
     mockFetchOk(mockResponse);
 
     await useAuthStore.getState().login("test@example.com", "password123");
 
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
-    expect(state.session?.token).toBe("test-token-123");
+    expect(state.token).toBe("test-token-123");
     expect(state.error).toBeNull();
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(stored.token).toBe("test-token-123");
-    expect(stored.clientCert).toContain("CERTIFICATE");
+    // Client cert and key should NOT be stored
+    expect(stored.clientCert).toBeUndefined();
+    expect(stored.clientKey).toBeUndefined();
   });
 
-  it("register saves session to localStorage", async () => {
+  it("register saves token to localStorage", async () => {
     mockFetchOk(mockResponse, 201);
 
     await useAuthStore.getState().register("test@example.com", "password123");
 
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
-    expect(state.session?.token).toBe("test-token-123");
+    expect(state.token).toBe("test-token-123");
   });
 
   it("login sets error on failure", async () => {
@@ -92,7 +94,7 @@ describe("auth store", () => {
     useAuthStore.getState().logout();
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(useAuthStore.getState().session).toBeNull();
+    expect(useAuthStore.getState().token).toBeNull();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 

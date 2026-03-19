@@ -534,11 +534,11 @@ the firmware protocol.
 
 ### Security
 
-- [ ] API client auto-logs out on 401 response (clears session, redirects to login)
-- [ ] Client certificate and private key are not stored in localStorage (removed from login response handling)
-- [ ] Service worker API cache has a TTL (e.g. 5 minutes) and excludes auth endpoints
-- [ ] Threshold controls enforce minimum range: 2°C / 3.6°F for temperature, 6% for humidity
-- [ ] Device name input has a maximum length enforced client-side
+- [x] API client auto-logs out on 401 response (clears session, redirects to login)
+- [x] Client certificate and private key are not stored in localStorage (removed from login response handling)
+- [x] Service worker API cache has a TTL (e.g. 5 minutes) and excludes auth endpoints
+- [x] Threshold controls enforce minimum range: 2°C / 3.6°F for temperature, 6% for humidity
+- [x] Device name input has a maximum length enforced client-side
 
 ### Integration
 

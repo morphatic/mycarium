@@ -15,6 +15,7 @@ const configSchema = z.object({
   API_PORT: z.coerce.number().default(3000),
   SESSION_DURATION_DAYS: z.coerce.number().default(30),
   RETENTION_DAYS: z.coerce.number().default(90),
+  CORS_ORIGIN: z.string().default("https://mycarium.morphatic.com"),
 });
 
 export type Config = z.infer<typeof configSchema>;

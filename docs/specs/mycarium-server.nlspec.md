@@ -583,11 +583,11 @@ already a sensitive payload (it contains a session token).
 
 ### Security Hardening
 
-- [ ] Rate limiting on `/auth/login` (5 req/min per IP) and `/auth/register` (3 req/min per IP)
-- [ ] CORS origin restricted to app domain instead of `origin: true`
-- [ ] HSTS header sent by Nginx with max-age of at least 1 year
-- [ ] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS)
-- [ ] Device name maximum length enforced server-side (64 characters)
+- [x] Rate limiting on `/auth/login` (5 req/min per IP) and `/auth/register` (3 req/min per IP)
+- [x] CORS origin restricted to app domain instead of `origin: true`
+- [ ] HSTS header sent by Nginx with max-age of at least 1 year (Nginx config updated, needs deploy)
+- [ ] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS) (Nginx config updated, needs deploy)
+- [x] Device name maximum length enforced server-side (64 characters)
 - [ ] Login response omits `clientKey` (or documents why it is needed)
 - [ ] MQTT ACL restricts topic access per user (deferred for multi-user deployment)
 

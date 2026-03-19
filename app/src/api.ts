@@ -1,5 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL as string | undefined;
 
+const STORAGE_KEY = "mycarium-session";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -17,7 +19,7 @@ function getBaseUrl(): string {
 
 function getToken(): string | null {
   try {
-    const raw = localStorage.getItem("mycarium-session");
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return (JSON.parse(raw) as { token: string }).token;
   } catch {
@@ -43,6 +45,13 @@ export async function api<T>(
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 204) return undefined as T;
+
+  // Auto-logout on 401 (expired/invalid session) — but not for login/register
+  if (res.status === 401 && !path.startsWith("/auth/")) {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = "/";
+    throw new ApiError(401, "Session expired");
+  }
 
   const body = await res.json();
 

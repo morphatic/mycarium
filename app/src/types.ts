@@ -38,11 +38,9 @@ export interface Device {
   createdAt: string;
 }
 
-/** Stored after login/register */
+/** Stored after login/register — only the token; cert/key are not sent to browser */
 export interface Session {
   token: string;
-  clientCert: string;
-  clientKey: string;
 }
 
 /** A single historical reading row from GET /devices/:id/history */

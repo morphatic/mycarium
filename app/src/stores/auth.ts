@@ -1,11 +1,14 @@
 import { create } from "zustand";
 import { api, ApiError } from "../api";
-import type { Session } from "../types";
 
 const STORAGE_KEY = "mycarium-session";
 
+interface StoredSession {
+  token: string;
+}
+
 interface AuthState {
-  session: Session | null;
+  token: string | null;
   isAuthenticated: boolean;
   error: string | null;
   loading: boolean;
@@ -15,18 +18,19 @@ interface AuthState {
   clearError: () => void;
 }
 
-function loadSession(): Session | null {
+function loadToken(): string | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as Session;
+    const parsed = JSON.parse(raw) as StoredSession;
+    return parsed.token ?? null;
   } catch {
     return null;
   }
 }
 
-function saveSession(session: Session): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+function saveToken(token: string): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ token }));
 }
 
 function clearSession(): void {
@@ -39,19 +43,11 @@ interface AuthResponse {
   client_key: string;
 }
 
-function toSession(res: AuthResponse): Session {
-  return {
-    token: res.token,
-    clientCert: res.client_cert,
-    clientKey: res.client_key,
-  };
-}
-
 export const useAuthStore = create<AuthState>((set) => {
-  const initial = loadSession();
+  const token = loadToken();
   return {
-    session: initial,
-    isAuthenticated: initial !== null,
+    token,
+    isAuthenticated: token !== null,
     error: null,
     loading: false,
 
@@ -62,9 +58,9 @@ export const useAuthStore = create<AuthState>((set) => {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
-        const session = toSession(res);
-        saveSession(session);
-        set({ session, isAuthenticated: true, loading: false });
+        // Only store the token — client cert/key are not used by the browser
+        saveToken(res.token);
+        set({ token: res.token, isAuthenticated: true, loading: false });
       } catch (err) {
         const message =
           err instanceof ApiError ? err.message : "Login failed";
@@ -79,9 +75,8 @@ export const useAuthStore = create<AuthState>((set) => {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
-        const session = toSession(res);
-        saveSession(session);
-        set({ session, isAuthenticated: true, loading: false });
+        saveToken(res.token);
+        set({ token: res.token, isAuthenticated: true, loading: false });
       } catch (err) {
         const message =
           err instanceof ApiError ? err.message : "Registration failed";
@@ -91,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => {
 
     logout: () => {
       clearSession();
-      set({ session: null, isAuthenticated: false, error: null });
+      set({ token: null, isAuthenticated: false, error: null });
     },
 
     clearError: () => set({ error: null }),

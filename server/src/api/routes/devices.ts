@@ -35,7 +35,7 @@ export const deviceRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/devices/:id", async (request, reply) => {
     const userId = request.user!.userId;
     const { id } = request.params as { id: string };
-    const body = z.object({ name: z.string() }).parse(request.body);
+    const body = z.object({ name: z.string().max(64) }).parse(request.body);
 
     const device = getDeviceById(app.db, Number(id));
     if (!device) {

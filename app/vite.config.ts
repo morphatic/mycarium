@@ -29,10 +29,14 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /\/api\//,
+            urlPattern: /\/devices/,
             handler: "NetworkFirst",
-            options: { cacheName: "api-cache", expiration: { maxEntries: 50 } },
+            options: {
+              cacheName: "api-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+            },
           },
+          // Auth endpoints are NOT cached — always go to network
         ],
       },
     }),
