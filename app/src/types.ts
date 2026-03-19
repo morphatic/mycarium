@@ -1,13 +1,13 @@
-/** Matches server StatusMessage (published on mycarium/status/<device-id>) */
+/** Matches firmware StatusMessage (published on mycarium/status/<device-id>) */
 export interface StatusMessage {
   ts: number;
   temp_c: number;
   temp_f?: number;
   humidity: number;
-  temp_min_c?: number;
-  temp_max_c?: number;
-  humidity_min?: number;
-  humidity_max?: number;
+  temp_min: number;
+  temp_max: number;
+  hum_min: number;
+  hum_max: number;
   heater_on: boolean;
   fogger_on: boolean;
   heater_action?: string;
@@ -16,12 +16,12 @@ export interface StatusMessage {
   fogger_mode?: string;
 }
 
-/** Published on mycarium/control/<device-id> */
+/** Published on mycarium/control/<device-id> — matches firmware ControlMessage */
 export interface ControlMessage {
-  temp_min_c?: number;
-  temp_max_c?: number;
-  humidity_min?: number;
-  humidity_max?: number;
+  temp_min?: number;
+  temp_max?: number;
+  hum_min?: number;
+  hum_max?: number;
   heater_mode?: "auto" | "manual";
   fogger_mode?: "auto" | "manual";
   heater_on?: boolean;

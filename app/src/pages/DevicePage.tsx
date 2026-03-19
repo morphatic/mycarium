@@ -72,10 +72,10 @@ export function DevicePage() {
   const foggerOn = status?.fogger_on ?? latestReading?.foggerOn ?? false;
   const heaterMode = (status?.heater_mode as "auto" | "manual") ?? "auto";
   const foggerMode = (status?.fogger_mode as "auto" | "manual") ?? "auto";
-  const tempMinC = status?.temp_min_c ?? 20;
-  const tempMaxC = status?.temp_max_c ?? 28;
-  const humidityMin = status?.humidity_min ?? 70;
-  const humidityMax = status?.humidity_max ?? 90;
+  const tempMinC = status?.temp_min ?? 20;
+  const tempMaxC = status?.temp_max ?? 28;
+  const humMin = status?.hum_min ?? 70;
+  const humMax = status?.hum_max ?? 90;
 
   const isStandby =
     heaterMode === "manual" &&
@@ -237,7 +237,7 @@ export function DevicePage() {
               {humidity != null ? humidity.toFixed(1) : "--"}%
             </p>
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark mt-1">
-              Range: {humidityMin}&ndash;{humidityMax}%
+              Range: {humMin}&ndash;{humMax}%
             </p>
           </div>
         </div>
@@ -275,8 +275,8 @@ export function DevicePage() {
               max={unit === "F" ? toFahrenheit(tempMaxC) : tempMaxC}
               onSave={(min, max) =>
                 sendControl({
-                  temp_min_c: unit === "F" ? toCelsius(min) : min,
-                  temp_max_c: unit === "F" ? toCelsius(max) : max,
+                  temp_min: unit === "F" ? toCelsius(min) : min,
+                  temp_max: unit === "F" ? toCelsius(max) : max,
                 })
               }
             />
@@ -284,10 +284,10 @@ export function DevicePage() {
             <ThresholdEditor
               label="Humidity"
               unit="%"
-              min={humidityMin}
-              max={humidityMax}
+              min={humMin}
+              max={humMax}
               onSave={(min, max) =>
-                sendControl({ humidity_min: min, humidity_max: max })
+                sendControl({ hum_min: min, hum_max: max })
               }
             />
 

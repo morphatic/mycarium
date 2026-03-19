@@ -5,10 +5,10 @@ export const statusMessageSchema = z.object({
   temp_c: z.number(),
   temp_f: z.number().optional(),
   humidity: z.number(),
-  temp_min_c: z.number().optional(),
-  temp_max_c: z.number().optional(),
-  humidity_min: z.number().optional(),
-  humidity_max: z.number().optional(),
+  temp_min: z.number(),
+  temp_max: z.number(),
+  hum_min: z.number(),
+  hum_max: z.number(),
   heater_on: z.boolean(),
   fogger_on: z.boolean(),
   heater_action: z.string().optional(),
@@ -20,10 +20,10 @@ export const statusMessageSchema = z.object({
 export type StatusMessage = z.infer<typeof statusMessageSchema>;
 
 export interface ControlMessage {
-  temp_min_c?: number;
-  temp_max_c?: number;
-  humidity_min?: number;
-  humidity_max?: number;
+  temp_min?: number;
+  temp_max?: number;
+  hum_min?: number;
+  hum_max?: number;
   heater_mode?: "auto" | "manual";
   fogger_mode?: "auto" | "manual";
   heater_on?: boolean;

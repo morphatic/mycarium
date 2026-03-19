@@ -10,28 +10,18 @@ export interface Alert {
 function checkSensorAlerts(status: StatusMessage): Alert[] {
   const alerts: Alert[] = [];
 
-  if (
-    status.temp_min_c !== undefined &&
-    status.temp_max_c !== undefined
-  ) {
-    if (status.temp_c < status.temp_min_c || status.temp_c > status.temp_max_c) {
-      alerts.push({
-        type: "temp",
-        message: `Temperature ${status.temp_c.toFixed(1)}°C is out of range (${status.temp_min_c}–${status.temp_max_c}°C)`,
-      });
-    }
+  if (status.temp_c < status.temp_min || status.temp_c > status.temp_max) {
+    alerts.push({
+      type: "temp",
+      message: `Temperature ${status.temp_c.toFixed(1)}°C is out of range (${status.temp_min}–${status.temp_max}°C)`,
+    });
   }
 
-  if (
-    status.humidity_min !== undefined &&
-    status.humidity_max !== undefined
-  ) {
-    if (status.humidity < status.humidity_min || status.humidity > status.humidity_max) {
-      alerts.push({
-        type: "humidity",
-        message: `Humidity ${status.humidity.toFixed(1)}% is out of range (${status.humidity_min}–${status.humidity_max}%)`,
-      });
-    }
+  if (status.humidity < status.hum_min || status.humidity > status.hum_max) {
+    alerts.push({
+      type: "humidity",
+      message: `Humidity ${status.humidity.toFixed(1)}% is out of range (${status.hum_min}–${status.hum_max}%)`,
+    });
   }
 
   return alerts;

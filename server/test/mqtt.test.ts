@@ -63,10 +63,10 @@ describe("statusMessageSchema", () => {
       fogger_action: "turned on",
       heater_mode: "auto",
       fogger_mode: "auto",
-      temp_min_c: 23.9,
-      temp_max_c: 27.8,
-      humidity_min: 85.0,
-      humidity_max: 92.0,
+      temp_min: 23.9,
+      temp_max: 27.8,
+      hum_min: 85.0,
+      hum_max: 92.0,
     };
 
     const result = statusMessageSchema.parse(msg);
@@ -79,6 +79,10 @@ describe("statusMessageSchema", () => {
       ts: 1700000000,
       temp_c: 25.3,
       humidity: 88.5,
+      temp_min: 23.9,
+      temp_max: 27.8,
+      hum_min: 85.0,
+      hum_max: 92.0,
       heater_on: false,
       fogger_on: true,
     };
