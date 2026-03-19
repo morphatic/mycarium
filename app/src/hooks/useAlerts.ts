@@ -43,8 +43,8 @@ export function useAlerts(deviceId: string): Alert[] {
 
   const alerts: Alert[] = [];
 
-  if (liveness === "offline") {
-    alerts.push({ type: "offline", message: "Device not responding" });
+  if (liveness === "offline" && status) {
+    alerts.push({ type: "offline", message: "No status update received in the last 60 seconds" });
   }
 
   if (status) {

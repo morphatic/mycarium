@@ -109,15 +109,15 @@ export function DevicePage() {
   const displayTempMax =
     unit === "F" ? toFahrenheit(tempMaxC).toFixed(1) : tempMaxC.toFixed(1);
 
-  // Connection status
-  const connectionLabel = mqttConnected
-    ? hasLive
-      ? "live"
-      : "connected"
-    : "disconnected";
-  const connectionColor = mqttConnected
-    ? "bg-green-500"
-    : "bg-red-500";
+  // Unified sensor status: combine MQTT connection + liveness into one indicator
+  const sensorStatus: { label: string; color: string; dotColor: string } =
+    !mqttConnected
+      ? { label: "disconnected", color: "text-red-600 dark:text-red-400", dotColor: "bg-red-500" }
+      : liveness === "online"
+        ? { label: "receiving", color: "text-green-600 dark:text-green-400", dotColor: "bg-green-500 animate-pulse" }
+        : hasLive
+          ? { label: "no recent data", color: "text-amber-600 dark:text-amber-400", dotColor: "bg-amber-500" }
+          : { label: "waiting", color: "text-myc-muted dark:text-myc-muted-dark", dotColor: "bg-gray-400" };
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4">
@@ -142,30 +142,21 @@ export function DevicePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Connection indicator */}
-            <span className="inline-flex items-center gap-1 text-xs text-myc-muted dark:text-myc-muted-dark">
-              <span className={`inline-block w-2 h-2 rounded-full ${connectionColor}`} />
-              {connectionLabel}
+            {/* Sensor status */}
+            <span className={`inline-flex items-center gap-1.5 text-xs ${sensorStatus.color}`}>
+              <span className={`inline-block w-2 h-2 rounded-full ${sensorStatus.dotColor}`} />
+              {sensorStatus.label}
             </span>
-            {liveness === "offline" && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
-                offline
-              </span>
-            )}
             {isStandby && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                 standby
               </span>
             )}
-            <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                device.status === "active"
-                  ? "bg-myc-teal/10 text-myc-teal-deep dark:bg-myc-accent/10 dark:text-myc-accent"
-                  : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
-              }`}
-            >
-              {device.status}
-            </span>
+            {device.status === "pending" && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400">
+                pending
+              </span>
+            )}
           </div>
         </div>
 
