@@ -12,7 +12,7 @@ export class ApiError extends Error {
 
 function getBaseUrl(): string {
   if (BASE_URL) return BASE_URL.replace(/\/$/, "");
-  return `${window.location.origin}/api`;
+  return window.location.origin;
 }
 
 function getToken(): string | null {
