@@ -68,27 +68,18 @@ the server rather than rsync from a local machine. This keeps the server repo in
 sync, avoids needing rsync flags or SSH key setup for push-based deploys, and
 means every deploy comes from a known git state.
 
-### PWA (app)
-
-```bash
-# SSH into the server
-ssh morphatic@mycarium.morphatic.com
-cd ~/mycarium
-git pull
-cd app && pnpm install && pnpm build
-sudo cp -r dist/* /var/www/mycarium/
-sudo chown -R www-data:www-data /var/www/mycarium/
-```
-
-### Server (persistence service + API)
+A `deploy.sh` script in the repo root automates the full process:
 
 ```bash
 ssh morphatic@mycarium.morphatic.com
 cd ~/mycarium
-git pull
-cd server && pnpm install && pnpm build
-sudo systemctl restart mycarium-server
+./deploy.sh          # deploy both app and server
+./deploy.sh app      # deploy only the PWA
+./deploy.sh server   # deploy only the persistence service
 ```
+
+The script pulls the latest code, installs dependencies, builds, copies/restarts
+as appropriate, and sets file ownership.
 
 ## Server Design Decisions (2026-03-18)
 
