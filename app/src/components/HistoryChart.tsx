@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -116,14 +116,6 @@ function findTransitions(
   return transitions;
 }
 
-/**
- * Dataset indices when thresholds are present:
- * 0: Temp range min, 1: _tempMax, 2: Humidity range min, 3: _humMax,
- * 4: Temp line, 5: Humidity line, 6-9: event markers
- *
- * Paired indices for linked legend toggling:
- */
-const RANGE_PAIRS: Record<number, number> = { 0: 1, 2: 3 };
 
 function buildChartData(
   readings: ReadingRow[],
@@ -311,7 +303,11 @@ function buildChartData(
   return { labels, datasets };
 }
 
-function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line"> {
+function buildChartOptions(
+  isDark: boolean,
+  unit: "C" | "F",
+  hiddenLabels: React.RefObject<Set<string>>,
+): ChartOptions<"line"> {
   const textColor = isDark ? "#9ca3af" : "#374151";
   const gridColor = isDark ? "rgba(55,142,121,0.15)" : "rgba(0,0,0,0.06)";
 
@@ -353,16 +349,32 @@ function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line
           const idx = legendItem.datasetIndex;
           if (idx == null) return;
           const chart = legend.chart;
+          const label = chart.data.datasets[idx]?.label ?? "";
 
           // Toggle the clicked dataset
           const meta = chart.getDatasetMeta(idx);
           meta.hidden = meta.hidden == null ? true : !meta.hidden;
 
-          // If this is a range min dataset, also toggle its paired max dataset
-          const pairedIdx = RANGE_PAIRS[idx];
-          if (pairedIdx != null) {
-            const pairedMeta = chart.getDatasetMeta(pairedIdx);
-            pairedMeta.hidden = meta.hidden;
+          // Persist to ref so it survives data refreshes
+          if (meta.hidden) {
+            hiddenLabels.current.add(label);
+          } else {
+            hiddenLabels.current.delete(label);
+          }
+
+          // If this is a range dataset, also toggle its linked partner
+          const linkedLabel = LINKED_LABELS[label];
+          if (linkedLabel) {
+            const linkedIdx = chart.data.datasets.findIndex((ds) => ds.label === linkedLabel);
+            if (linkedIdx >= 0) {
+              const linkedMeta = chart.getDatasetMeta(linkedIdx);
+              linkedMeta.hidden = meta.hidden;
+              if (meta.hidden) {
+                hiddenLabels.current.add(linkedLabel);
+              } else {
+                hiddenLabels.current.delete(linkedLabel);
+              }
+            }
           }
 
           chart.update();
@@ -387,6 +399,12 @@ function buildChartOptions(isDark: boolean, unit: "C" | "F"): ChartOptions<"line
   };
 }
 
+/** Labels that are linked — hiding one hides the other */
+const LINKED_LABELS: Record<string, string> = {
+  "Temp range": "_tempMax",
+  "Humidity range": "_humMax",
+};
+
 export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: HistoryChartProps) {
   const theme = useThemeStore((s) => s.theme);
   const unit = useTempUnitStore((s) => s.unit);
@@ -394,6 +412,9 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
   const [range, setRange] = useState<TimeRange>("1h");
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Track hidden datasets by label so visibility persists across data refreshes
+  const hiddenLabels = useRef<Set<string>>(new Set());
 
   const lastReading = readings.length > 0 ? readings[readings.length - 1] : null;
 
@@ -463,8 +484,17 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
           </p>
         ) : (
           <Line
-            data={buildChartData(readings, isDark, unit, thresholds)}
-            options={buildChartOptions(isDark, unit)}
+            data={(() => {
+              const d = buildChartData(readings, isDark, unit, thresholds);
+              // Reapply hidden state from previous render
+              for (const ds of d.datasets) {
+                if (ds.label && hiddenLabels.current.has(ds.label)) {
+                  ds.hidden = true;
+                }
+              }
+              return d;
+            })()}
+            options={buildChartOptions(isDark, unit, hiddenLabels)}
           />
         )}
       </div>
