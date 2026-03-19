@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-myc-bg: #f3e3c2;
   --color-myc-bg-dark: #0e1b18;

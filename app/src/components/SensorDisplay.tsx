@@ -1,10 +1,17 @@
 import type { StatusMessage } from "../types";
+import { useTempUnitStore, toFahrenheit } from "../stores/tempUnit";
 
 interface SensorDisplayProps {
   status: StatusMessage;
 }
 
 export function SensorDisplay({ status }: SensorDisplayProps) {
+  const unit = useTempUnitStore((s) => s.unit);
+  const temp =
+    unit === "F"
+      ? status.temp_f ?? toFahrenheit(status.temp_c)
+      : status.temp_c;
+
   return (
     <div className="flex gap-6">
       <div>
@@ -12,13 +19,8 @@ export function SensorDisplay({ status }: SensorDisplayProps) {
           Temperature
         </p>
         <p className="text-2xl font-semibold text-myc-brown-warm dark:text-myc-accent">
-          {status.temp_c.toFixed(1)}&deg;C
+          {temp.toFixed(1)}&deg;{unit}
         </p>
-        {status.temp_f !== undefined && (
-          <p className="text-sm text-myc-muted dark:text-myc-muted-dark">
-            {status.temp_f.toFixed(1)}&deg;F
-          </p>
-        )}
       </div>
       <div>
         <p className="text-sm text-myc-muted dark:text-myc-muted-dark">
