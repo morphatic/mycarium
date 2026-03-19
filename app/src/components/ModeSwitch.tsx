@@ -2,6 +2,7 @@ interface ModeSwitchProps {
   label: string;
   mode: "auto" | "manual";
   on: boolean;
+  pending?: boolean;
   onModeChange: (mode: "auto" | "manual") => void;
   onToggle: (on: boolean) => void;
 }
@@ -10,15 +11,23 @@ export function ModeSwitch({
   label,
   mode,
   on,
+  pending,
   onModeChange,
   onToggle,
 }: ModeSwitchProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-myc-text dark:text-myc-text-dark">
-          {label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-myc-text dark:text-myc-text-dark">
+            {label}
+          </span>
+          {pending && (
+            <span className="text-[10px] text-myc-muted dark:text-myc-muted-dark italic animate-pulse">
+              waiting for device...
+            </span>
+          )}
+        </div>
         <button
           onClick={() => onModeChange(mode === "auto" ? "manual" : "auto")}
           className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${

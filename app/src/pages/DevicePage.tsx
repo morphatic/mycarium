@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useDevicesStore } from "../stores/devices";
 import { useMqttStore } from "../stores/mqtt";
@@ -9,11 +9,18 @@ import { api } from "../api";
 import { ActuatorBadge } from "../components/ActuatorBadge";
 import { ThresholdEditor } from "../components/ThresholdEditor";
 import { ModeSwitch } from "../components/ModeSwitch";
-import { StandbyButton } from "../components/StandbyButton";
 import { HistoryChart } from "../components/HistoryChart";
 import { AlertBanner } from "../components/AlertBanner";
 import { useAlerts } from "../hooks/useAlerts";
 import type { ControlMessage, ReadingRow } from "../types";
+
+/** Optimistic overrides applied on top of MQTT status until device confirms. */
+interface Overrides {
+  heater_mode?: "auto" | "manual";
+  fogger_mode?: "auto" | "manual";
+  heater_on?: boolean;
+  fogger_on?: boolean;
+}
 
 export function DevicePage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +33,8 @@ export function DevicePage() {
   const [name, setName] = useState("");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [latestReading, setLatestReading] = useState<ReadingRow | null>(null);
+  const [overrides, setOverrides] = useState<Overrides>({});
+  const overrideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (devices.length === 0) fetchDevices();
@@ -52,6 +61,17 @@ export function DevicePage() {
   const liveness = useLiveness(deviceId ?? "");
   const alerts = useAlerts(deviceId ?? "");
 
+  // Clear optimistic overrides when a new status message arrives
+  const statusTs = status?.ts;
+  const prevTsRef = useRef(statusTs);
+  useEffect(() => {
+    if (statusTs !== undefined && statusTs !== prevTsRef.current) {
+      prevTsRef.current = statusTs;
+      setOverrides({});
+      if (overrideTimer.current) clearTimeout(overrideTimer.current);
+    }
+  }, [statusTs]);
+
   if (!device) {
     return (
       <p className="p-4 text-myc-muted dark:text-myc-muted-dark">
@@ -62,26 +82,36 @@ export function DevicePage() {
 
   const sendControl = (msg: ControlMessage) => {
     publish(`mycarium/control/${device.deviceId}`, JSON.stringify(msg));
+
+    // Apply optimistic overrides for mode/on fields
+    const newOverrides: Overrides = { ...overrides };
+    if (msg.heater_mode !== undefined) newOverrides.heater_mode = msg.heater_mode;
+    if (msg.fogger_mode !== undefined) newOverrides.fogger_mode = msg.fogger_mode;
+    if (msg.heater_on !== undefined) newOverrides.heater_on = msg.heater_on;
+    if (msg.fogger_on !== undefined) newOverrides.fogger_on = msg.fogger_on;
+    setOverrides(newOverrides);
+
+    // Auto-clear after 60s if device never confirms
+    if (overrideTimer.current) clearTimeout(overrideTimer.current);
+    overrideTimer.current = setTimeout(() => setOverrides({}), 60_000);
   };
 
-  // Use MQTT status if available, otherwise fall back to latest API reading
+  // Merge MQTT status with optimistic overrides
   const hasLive = !!status;
   const tempC = status?.temp_c ?? latestReading?.tempC;
   const humidity = status?.humidity ?? latestReading?.humidity;
-  const heaterOn = status?.heater_on ?? latestReading?.heaterOn ?? false;
-  const foggerOn = status?.fogger_on ?? latestReading?.foggerOn ?? false;
-  const heaterMode = (status?.heater_mode as "auto" | "manual") ?? "auto";
-  const foggerMode = (status?.fogger_mode as "auto" | "manual") ?? "auto";
+  const heaterOn = overrides.heater_on ?? status?.heater_on ?? latestReading?.heaterOn ?? false;
+  const foggerOn = overrides.fogger_on ?? status?.fogger_on ?? latestReading?.foggerOn ?? false;
+  const heaterMode = overrides.heater_mode ?? (status?.heater_mode as "auto" | "manual") ?? "auto";
+  const foggerMode = overrides.fogger_mode ?? (status?.fogger_mode as "auto" | "manual") ?? "auto";
   const tempMinC = status?.temp_min ?? 20;
   const tempMaxC = status?.temp_max ?? 28;
   const humMin = status?.hum_min ?? 70;
   const humMax = status?.hum_max ?? 90;
 
-  const isStandby =
-    heaterMode === "manual" &&
-    foggerMode === "manual" &&
-    !heaterOn &&
-    !foggerOn;
+  const hasPending = Object.keys(overrides).length > 0;
+  const heaterPending = overrides.heater_mode !== undefined || overrides.heater_on !== undefined;
+  const foggerPending = overrides.fogger_mode !== undefined || overrides.fogger_on !== undefined;
 
   const handleRename = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,19 +127,16 @@ export function DevicePage() {
 
   const displayName = device.name || device.deviceId;
 
-  // Temperature display value
   const tempDisplay =
     tempC != null
       ? (unit === "F" ? toFahrenheit(tempC) : tempC).toFixed(1)
       : "--";
 
-  // Threshold display values
   const displayTempMin =
     unit === "F" ? toFahrenheit(tempMinC).toFixed(1) : tempMinC.toFixed(1);
   const displayTempMax =
     unit === "F" ? toFahrenheit(tempMaxC).toFixed(1) : tempMaxC.toFixed(1);
 
-  // Unified sensor status: combine MQTT connection + liveness into one indicator
   const sensorStatus: { label: string; color: string; dotColor: string } =
     !mqttConnected
       ? { label: "disconnected", color: "text-red-600 dark:text-red-400", dotColor: "bg-red-500" }
@@ -142,16 +169,10 @@ export function DevicePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Sensor status */}
             <span className={`inline-flex items-center gap-1.5 text-xs ${sensorStatus.color}`}>
               <span className={`inline-block w-2 h-2 rounded-full ${sensorStatus.dotColor}`} />
               {sensorStatus.label}
             </span>
-            {isStandby && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                standby
-              </span>
-            )}
             {device.status === "pending" && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400">
                 pending
@@ -216,7 +237,6 @@ export function DevicePage() {
           </p>
         )}
         <div className="grid grid-cols-2 gap-4">
-          {/* Temperature */}
           <div>
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
               Temperature
@@ -228,7 +248,6 @@ export function DevicePage() {
               Range: {displayTempMin}&ndash;{displayTempMax}&deg;{unit}
             </p>
           </div>
-          {/* Humidity */}
           <div>
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
               Humidity
@@ -241,14 +260,18 @@ export function DevicePage() {
             </p>
           </div>
         </div>
-        {/* Actuator status */}
         <div className="flex gap-2 mt-3 pt-3 border-t border-myc-cream dark:border-myc-teal-deep/20">
           <ActuatorBadge label="Heater" on={heaterOn} mode={heaterMode} />
           <ActuatorBadge label="Fogger" on={foggerOn} mode={foggerMode} />
+          {hasPending && (
+            <span className="text-[10px] text-myc-muted dark:text-myc-muted-dark italic animate-pulse self-center ml-auto">
+              command sent...
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Controls — collapsible, always available */}
+      {/* Controls — collapsible */}
       <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20">
         <button
           onClick={() => setControlsOpen(!controlsOpen)}
@@ -291,11 +314,12 @@ export function DevicePage() {
               }
             />
 
-            <div className="space-y-2 pt-2 border-t border-myc-cream dark:border-myc-teal-deep/20">
+            <div className="space-y-3 pt-2 border-t border-myc-cream dark:border-myc-teal-deep/20">
               <ModeSwitch
                 label="Heater"
                 mode={heaterMode}
                 on={heaterOn}
+                pending={heaterPending}
                 onModeChange={(mode) => sendControl({ heater_mode: mode })}
                 onToggle={(on) => sendControl({ heater_on: on })}
               />
@@ -303,28 +327,11 @@ export function DevicePage() {
                 label="Fogger"
                 mode={foggerMode}
                 on={foggerOn}
+                pending={foggerPending}
                 onModeChange={(mode) => sendControl({ fogger_mode: mode })}
                 onToggle={(on) => sendControl({ fogger_on: on })}
               />
             </div>
-
-            <StandbyButton
-              isStandby={isStandby}
-              onEnter={() =>
-                sendControl({
-                  heater_mode: "manual",
-                  fogger_mode: "manual",
-                  heater_on: false,
-                  fogger_on: false,
-                })
-              }
-              onExit={() =>
-                sendControl({
-                  heater_mode: "auto",
-                  fogger_mode: "auto",
-                })
-              }
-            />
           </div>
         )}
       </div>
