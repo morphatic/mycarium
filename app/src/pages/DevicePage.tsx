@@ -143,17 +143,28 @@ export function DevicePage() {
   const displayTempMax =
     unit === "F" ? toFahrenheit(tempMaxC).toFixed(1) : tempMaxC.toFixed(1);
 
-  // Range status for color coding
+  // Range status for color coding — compare rounded display values so that
+  // e.g. 75.0°F shows as in-range when the threshold min is 75.0°F, even if
+  // the raw Celsius value is fractionally below due to float precision.
   type RangeStatus = "low" | "ok" | "high" | "unknown";
+  const roundedTemp = tempC != null
+    ? parseFloat((unit === "F" ? toFahrenheit(tempC) : tempC).toFixed(1))
+    : null;
+  const roundedTempMin = parseFloat((unit === "F" ? toFahrenheit(tempMinC) : tempMinC).toFixed(1));
+  const roundedTempMax = parseFloat((unit === "F" ? toFahrenheit(tempMaxC) : tempMaxC).toFixed(1));
+  const roundedHum = humidity != null ? parseFloat(humidity.toFixed(1)) : null;
+  const roundedHumMin = parseFloat(humMin.toFixed(1));
+  const roundedHumMax = parseFloat(humMax.toFixed(1));
+
   const tempRange: RangeStatus =
-    tempC == null ? "unknown"
-      : tempC < tempMinC ? "low"
-        : tempC > tempMaxC ? "high"
+    roundedTemp == null ? "unknown"
+      : roundedTemp < roundedTempMin ? "low"
+        : roundedTemp > roundedTempMax ? "high"
           : "ok";
   const humRange: RangeStatus =
-    humidity == null ? "unknown"
-      : humidity < humMin ? "low"
-        : humidity > humMax ? "high"
+    roundedHum == null ? "unknown"
+      : roundedHum < roundedHumMin ? "low"
+        : roundedHum > roundedHumMax ? "high"
           : "ok";
 
   const rangeColor = (range: RangeStatus) => {
