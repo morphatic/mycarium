@@ -17,21 +17,23 @@ export function DeviceCard({ device }: DeviceCardProps) {
   return (
     <Link
       to={`/device/${device.id}`}
-      className="block bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+      className="block bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4 hover:shadow-md dark:hover:border-myc-teal-deep/40 transition-all"
     >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-gray-900">{displayName}</h3>
+        <h3 className="font-semibold text-myc-text dark:text-myc-text-dark">
+          {displayName}
+        </h3>
         <div className="flex items-center gap-2">
           {liveness === "offline" && (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
               offline
             </span>
           )}
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full ${
               device.status === "active"
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-yellow-100 text-yellow-800"
+                ? "bg-myc-teal/10 text-myc-teal-deep dark:bg-myc-accent/10 dark:text-myc-accent"
+                : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
             }`}
           >
             {device.status}
@@ -39,7 +41,9 @@ export function DeviceCard({ device }: DeviceCardProps) {
         </div>
       </div>
       {device.name && (
-        <p className="text-sm text-gray-500 mb-2">{device.deviceId}</p>
+        <p className="text-sm text-myc-muted dark:text-myc-muted-dark mb-2">
+          {device.deviceId}
+        </p>
       )}
       {status && (
         <>

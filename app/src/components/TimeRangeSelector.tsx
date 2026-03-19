@@ -34,8 +34,8 @@ export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
           onClick={() => onChange(r.value)}
           className={`text-xs px-3 py-1 rounded ${
             value === r.value
-              ? "bg-emerald-700 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-myc-teal dark:bg-myc-teal-deep text-white"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
           }`}
         >
           {r.label}

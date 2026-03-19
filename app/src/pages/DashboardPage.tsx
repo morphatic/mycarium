@@ -28,18 +28,20 @@ export function DashboardPage() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Devices</h2>
+      <h2 className="text-xl font-semibold mb-4 text-myc-text dark:text-myc-text-dark">
+        Devices
+      </h2>
 
       {error && (
-        <p className="text-red-600 text-sm mb-4" role="alert">
+        <p className="text-red-600 dark:text-red-400 text-sm mb-4" role="alert">
           {error}
         </p>
       )}
 
       {loading && devices.length === 0 ? (
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-myc-muted dark:text-myc-muted-dark">Loading...</p>
       ) : devices.length === 0 ? (
-        <p className="text-gray-500 mb-4">
+        <p className="text-myc-muted dark:text-myc-muted-dark mb-4">
           No devices yet. Claim one to get started.
         </p>
       ) : (
@@ -56,12 +58,12 @@ export function DashboardPage() {
           placeholder="Device ID (e.g. mycarium-1)"
           value={newDeviceId}
           onChange={(e) => setNewDeviceId(e.target.value)}
-          className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="flex-1 border border-myc-cream dark:border-myc-teal-deep/40 rounded px-3 py-2 bg-white dark:bg-myc-bg-dark dark:text-myc-text-dark focus:outline-none focus:ring-2 focus:ring-myc-teal dark:focus:ring-myc-accent"
         />
         <button
           type="submit"
           disabled={claiming || !newDeviceId.trim()}
-          className="bg-emerald-700 text-white px-4 py-2 rounded font-medium hover:bg-emerald-800 disabled:opacity-50"
+          className="bg-myc-teal dark:bg-myc-teal-deep text-white px-4 py-2 rounded font-medium hover:bg-myc-teal-mid dark:hover:bg-myc-teal disabled:opacity-50"
         >
           {claiming ? "..." : "Claim"}
         </button>

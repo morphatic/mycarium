@@ -18,8 +18,8 @@ export default defineConfig({
         name: "Mycarium",
         short_name: "Mycarium",
         description: "IoT mushroom terrarium monitor and controller",
-        theme_color: "#065f46",
-        background_color: "#f0fdf4",
+        theme_color: "#0e1b18",
+        background_color: "#0e1b18",
         display: "standalone",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

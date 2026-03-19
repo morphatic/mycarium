@@ -36,7 +36,11 @@ export function DevicePage() {
   const alerts = useAlerts(deviceId ?? "");
 
   if (!device) {
-    return <p className="p-4 text-gray-500">Device not found.</p>;
+    return (
+      <p className="p-4 text-myc-muted dark:text-myc-muted-dark">
+        Device not found.
+      </p>
+    );
   }
 
   const sendControl = (msg: ControlMessage) => {
@@ -67,36 +71,40 @@ export function DevicePage() {
     <div className="p-4 max-w-2xl mx-auto">
       <button
         onClick={() => navigate("/")}
-        className="text-emerald-700 text-sm mb-4 hover:underline"
+        className="text-myc-teal dark:text-myc-accent text-sm mb-4 hover:underline"
       >
         &larr; Back
       </button>
 
-      <div className="bg-white rounded-lg shadow p-6 space-y-6">
+      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold">{displayName}</h2>
+            <h2 className="text-xl font-semibold text-myc-text dark:text-myc-text-dark">
+              {displayName}
+            </h2>
             {device.name && (
-              <p className="text-sm text-gray-500">{device.deviceId}</p>
+              <p className="text-sm text-myc-muted dark:text-myc-muted-dark">
+                {device.deviceId}
+              </p>
             )}
           </div>
           <div className="flex items-center gap-2">
             {liveness === "offline" && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
                 offline
               </span>
             )}
             {isStandby && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                 standby
               </span>
             )}
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 device.status === "active"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-yellow-100 text-yellow-800"
+                  ? "bg-myc-teal/10 text-myc-teal-deep dark:bg-myc-accent/10 dark:text-myc-accent"
+                  : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
               }`}
             >
               {device.status}
@@ -112,19 +120,19 @@ export function DevicePage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Device name"
-              className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="flex-1 border border-myc-cream dark:border-myc-teal-deep/40 rounded px-3 py-2 bg-white dark:bg-myc-bg-dark dark:text-myc-text-dark focus:outline-none focus:ring-2 focus:ring-myc-teal dark:focus:ring-myc-accent"
               autoFocus
             />
             <button
               type="submit"
-              className="bg-emerald-700 text-white px-3 py-2 rounded text-sm"
+              className="bg-myc-teal dark:bg-myc-teal-deep text-white px-3 py-2 rounded text-sm"
             >
               Save
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="text-gray-500 px-3 py-2 text-sm"
+              className="text-myc-muted dark:text-myc-muted-dark px-3 py-2 text-sm"
             >
               Cancel
             </button>
@@ -136,13 +144,13 @@ export function DevicePage() {
                 setName(device.name || "");
                 setEditing(true);
               }}
-              className="text-sm text-emerald-700 hover:underline"
+              className="text-sm text-myc-teal dark:text-myc-accent hover:underline"
             >
               Rename
             </button>
             <button
               onClick={handleRemove}
-              className="text-sm text-red-600 hover:underline"
+              className="text-sm text-red-600 dark:text-red-400 hover:underline"
             >
               Remove
             </button>
@@ -169,8 +177,10 @@ export function DevicePage() {
             </div>
 
             {/* Controls */}
-            <div className="border-t pt-4 space-y-4">
-              <h3 className="font-medium text-gray-800">Controls</h3>
+            <div className="border-t border-myc-cream dark:border-myc-teal-deep/20 pt-4 space-y-4">
+              <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
+                Controls
+              </h3>
 
               <ThresholdEditor
                 label="Temperature"
@@ -231,7 +241,7 @@ export function DevicePage() {
         )}
 
         {/* History Chart */}
-        <div className="border-t pt-4">
+        <div className="border-t border-myc-cream dark:border-myc-teal-deep/20 pt-4">
           <HistoryChart deviceDbId={device.id} />
         </div>
       </div>

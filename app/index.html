@@ -3,10 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#065f46" />
+    <meta name="theme-color" content="#0e1b18" />
     <title>Mycarium</title>
+    <script>
+      // Prevent flash: apply dark class before render
+      (function() {
+        var t = localStorage.getItem('mycarium-theme');
+        if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-green-50 text-gray-900 min-h-screen">
+  <body class="bg-myc-cream-light dark:bg-myc-bg-dark text-myc-text dark:text-myc-text-dark min-h-screen transition-colors">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

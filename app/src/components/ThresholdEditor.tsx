@@ -38,38 +38,42 @@ export function ThresholdEditor({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-gray-700">{label}</p>
+      <p className="text-sm font-medium text-myc-text dark:text-myc-text-dark">
+        {label}
+      </p>
       <div className="flex items-center gap-2">
-        <label className="text-xs text-gray-500">
+        <label className="text-xs text-myc-muted dark:text-myc-muted-dark">
           Min
           <input
             type="number"
             step="0.1"
             value={minVal}
             onChange={(e) => setMinVal(e.target.value)}
-            className="block w-20 border rounded px-2 py-1 text-sm mt-0.5"
+            className="block w-20 border border-myc-cream dark:border-myc-teal-deep/40 rounded px-2 py-1 text-sm mt-0.5 bg-white dark:bg-myc-bg-dark dark:text-myc-text-dark"
           />
         </label>
-        <label className="text-xs text-gray-500">
+        <label className="text-xs text-myc-muted dark:text-myc-muted-dark">
           Max
           <input
             type="number"
             step="0.1"
             value={maxVal}
             onChange={(e) => setMaxVal(e.target.value)}
-            className="block w-20 border rounded px-2 py-1 text-sm mt-0.5"
+            className="block w-20 border border-myc-cream dark:border-myc-teal-deep/40 rounded px-2 py-1 text-sm mt-0.5 bg-white dark:bg-myc-bg-dark dark:text-myc-text-dark"
           />
         </label>
-        <span className="text-xs text-gray-400 self-end pb-1">{unit}</span>
+        <span className="text-xs text-myc-muted dark:text-myc-muted-dark self-end pb-1">
+          {unit}
+        </span>
         <button
           onClick={handleSave}
-          className="self-end text-sm bg-emerald-700 text-white px-3 py-1 rounded hover:bg-emerald-800"
+          className="self-end text-sm bg-myc-teal dark:bg-myc-teal-deep text-white px-3 py-1 rounded hover:bg-myc-teal-mid dark:hover:bg-myc-teal"
         >
           Set
         </button>
       </div>
       {error && (
-        <p className="text-red-600 text-xs" role="alert">
+        <p className="text-red-600 dark:text-red-400 text-xs" role="alert">
           {error}
         </p>
       )}

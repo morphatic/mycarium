@@ -18,6 +18,7 @@ import {
   timeRangeToSeconds,
   type TimeRange,
 } from "./TimeRangeSelector";
+import { useThemeStore } from "../stores/theme";
 import type { ReadingRow } from "../types";
 
 ChartJS.register(
@@ -43,6 +44,7 @@ function formatTime(ts: number): string {
 
 function buildChartData(
   readings: ReadingRow[],
+  isDark: boolean,
 ): ChartData<"line", number[], string> {
   const labels = readings.map((r) => formatTime(r.ts));
 
@@ -50,18 +52,18 @@ function buildChartData(
     labels,
     datasets: [
       {
-        label: "Temp (°C)",
+        label: "Temp (\u00B0C)",
         data: readings.map((r) => r.tempC),
-        borderColor: "#dc2626",
-        backgroundColor: "rgba(220,38,38,0.1)",
+        borderColor: isDark ? "#945a3a" : "#dc2626",
+        backgroundColor: isDark ? "rgba(148,90,58,0.1)" : "rgba(220,38,38,0.1)",
         tension: 0.3,
         pointRadius: 0,
       },
       {
         label: "Humidity (%)",
         data: readings.map((r) => r.humidity),
-        borderColor: "#2563eb",
-        backgroundColor: "rgba(37,99,235,0.1)",
+        borderColor: isDark ? "#09facc" : "#2563eb",
+        backgroundColor: isDark ? "rgba(9,250,204,0.1)" : "rgba(37,99,235,0.1)",
         tension: 0.3,
         pointRadius: 0,
       },
@@ -78,8 +80,8 @@ function buildChartData(
       {
         label: "Fogger",
         data: readings.map((r) => (r.foggerOn ? 1 : 0)),
-        borderColor: "rgba(59,130,246,0.4)",
-        backgroundColor: "rgba(59,130,246,0.15)",
+        borderColor: isDark ? "rgba(35,187,167,0.4)" : "rgba(59,130,246,0.4)",
+        backgroundColor: isDark ? "rgba(35,187,167,0.15)" : "rgba(59,130,246,0.15)",
         fill: true,
         tension: 0,
         pointRadius: 0,
@@ -89,25 +91,44 @@ function buildChartData(
   };
 }
 
-const chartOptions: ChartOptions<"line"> = {
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { intersect: false, mode: "index" },
-  scales: {
-    y: { title: { display: true, text: "°C / %" }, beginAtZero: false },
-    y1: {
-      position: "right",
-      min: 0,
-      max: 1,
-      display: false,
+function buildChartOptions(isDark: boolean): ChartOptions<"line"> {
+  const textColor = isDark ? "#9ca3af" : "#374151";
+  const gridColor = isDark ? "rgba(55,142,121,0.15)" : "rgba(0,0,0,0.06)";
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: "index" },
+    scales: {
+      x: {
+        ticks: { color: textColor },
+        grid: { color: gridColor },
+      },
+      y: {
+        title: { display: true, text: "\u00B0C / %", color: textColor },
+        beginAtZero: false,
+        ticks: { color: textColor },
+        grid: { color: gridColor },
+      },
+      y1: {
+        position: "right",
+        min: 0,
+        max: 1,
+        display: false,
+      },
     },
-  },
-  plugins: {
-    legend: { position: "bottom", labels: { boxWidth: 12, padding: 8 } },
-  },
-};
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { boxWidth: 12, padding: 8, color: textColor },
+      },
+    },
+  };
+}
 
 export function HistoryChart({ deviceDbId }: HistoryChartProps) {
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === "dark";
   const [range, setRange] = useState<TimeRange>("24h");
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,16 +159,25 @@ export function HistoryChart({ deviceDbId }: HistoryChartProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-800">History</h3>
+        <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
+          History
+        </h3>
         <TimeRangeSelector value={range} onChange={setRange} />
       </div>
       <div className="h-64">
         {loading ? (
-          <p className="text-gray-400 text-sm">Loading...</p>
+          <p className="text-myc-muted dark:text-myc-muted-dark text-sm">
+            Loading...
+          </p>
         ) : readings.length === 0 ? (
-          <p className="text-gray-400 text-sm">No data for this range.</p>
+          <p className="text-myc-muted dark:text-myc-muted-dark text-sm">
+            No data for this range.
+          </p>
         ) : (
-          <Line data={buildChartData(readings)} options={chartOptions} />
+          <Line
+            data={buildChartData(readings, isDark)}
+            options={buildChartOptions(isDark)}
+          />
         )}
       </div>
     </div>

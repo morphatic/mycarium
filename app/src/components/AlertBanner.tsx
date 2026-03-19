@@ -6,9 +6,12 @@ interface AlertBannerProps {
 }
 
 const alertStyles = {
-  offline: "bg-red-50 border-red-200 text-red-800",
-  temp: "bg-orange-50 border-orange-200 text-orange-800",
-  humidity: "bg-blue-50 border-blue-200 text-blue-800",
+  offline:
+    "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-400",
+  temp:
+    "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40 text-orange-800 dark:text-orange-300",
+  humidity:
+    "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40 text-blue-800 dark:text-blue-300",
 };
 
 export function AlertBanner({ alerts }: AlertBannerProps) {
