@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { readFileSync, unlinkSync, existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 
 const execFileAsync = promisify(execFile);
@@ -23,6 +23,13 @@ export async function issueClientCertificate(
   const csrPath = `${prefix}.csr`;
   const certPath = `${prefix}.crt`;
 
+  // Keep the CA serial file in the server's data directory, not next to
+  // the CA cert (which lives in /etc/mosquitto/certs/ and is not writable
+  // by the server process).
+  const dataDir = dirname(process.env.DATABASE_PATH || "./data/mycarium.db");
+  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+  const serialPath = join(dataDir, "ca.srl");
+
   try {
     // Step 1: Generate client private key (no password)
     await execFileAsync("openssl", [
@@ -37,12 +44,14 @@ export async function issueClientCertificate(
       "-subj", `/CN=${clientId}`,
     ]);
 
-    // Step 3: Sign CSR with CA
+    // Step 3: Sign CSR with CA — use -CAserial with a writable path
+    // and -CAcreateserial so it creates the file on first run
     await execFileAsync("openssl", [
       "x509", "-req",
       "-in", csrPath,
       "-CA", caCertPath,
       "-CAkey", caKeyPath,
+      "-CAserial", serialPath,
       "-CAcreateserial",
       "-out", certPath,
       "-days", "365",
