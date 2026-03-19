@@ -10,6 +10,7 @@ function MqttManager() {
   const session = useAuthStore((s) => s.session);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { connect, disconnect, subscribeDevice } = useMqttStore();
+  const connected = useMqttStore((s) => s.connected);
   const devices = useDevicesStore((s) => s.devices);
 
   useEffect(() => {
@@ -23,11 +24,13 @@ function MqttManager() {
     return () => disconnect();
   }, [isAuthenticated, session, connect, disconnect]);
 
+  // Re-subscribe whenever the connection is (re)established or devices change
   useEffect(() => {
+    if (!connected) return;
     for (const device of devices) {
       subscribeDevice(device.deviceId);
     }
-  }, [devices, subscribeDevice]);
+  }, [devices, connected, subscribeDevice]);
 
   return null;
 }
