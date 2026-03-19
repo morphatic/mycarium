@@ -137,6 +137,35 @@ export function DevicePage() {
   const displayTempMax =
     unit === "F" ? toFahrenheit(tempMaxC).toFixed(1) : tempMaxC.toFixed(1);
 
+  // Range status for color coding
+  type RangeStatus = "low" | "ok" | "high" | "unknown";
+  const tempRange: RangeStatus =
+    tempC == null ? "unknown"
+      : tempC < tempMinC ? "low"
+        : tempC > tempMaxC ? "high"
+          : "ok";
+  const humRange: RangeStatus =
+    humidity == null ? "unknown"
+      : humidity < humMin ? "low"
+        : humidity > humMax ? "high"
+          : "ok";
+
+  const rangeColor = (range: RangeStatus) => {
+    switch (range) {
+      case "ok": return "text-green-600 dark:text-green-400";
+      case "low": return "text-blue-600 dark:text-blue-400";
+      case "high": return "text-red-600 dark:text-red-400";
+      default: return "text-myc-muted dark:text-myc-muted-dark";
+    }
+  };
+  const rangeArrow = (range: RangeStatus) => {
+    switch (range) {
+      case "low": return " \u25BC";  // ▼
+      case "high": return " \u25B2"; // ▲
+      default: return "";
+    }
+  };
+
   const sensorStatus: { label: string; color: string; dotColor: string } =
     !mqttConnected
       ? { label: "disconnected", color: "text-red-600 dark:text-red-400", dotColor: "bg-red-500" }
@@ -241,8 +270,8 @@ export function DevicePage() {
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
               Temperature
             </p>
-            <p className="text-3xl font-bold text-myc-brown-warm dark:text-myc-accent">
-              {tempDisplay}&deg;{unit}
+            <p className={`text-3xl font-bold ${rangeColor(tempRange)}`}>
+              {tempDisplay}&deg;{unit}{rangeArrow(tempRange)}
             </p>
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark mt-1">
               Range: {displayTempMin}&ndash;{displayTempMax}&deg;{unit}
@@ -252,8 +281,8 @@ export function DevicePage() {
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
               Humidity
             </p>
-            <p className="text-3xl font-bold text-myc-teal-deep dark:text-myc-teal">
-              {humidity != null ? humidity.toFixed(1) : "--"}%
+            <p className={`text-3xl font-bold ${rangeColor(humRange)}`}>
+              {humidity != null ? humidity.toFixed(1) : "--"}%{rangeArrow(humRange)}
             </p>
             <p className="text-xs text-myc-muted dark:text-myc-muted-dark mt-1">
               Range: {humMin}&ndash;{humMax}%
