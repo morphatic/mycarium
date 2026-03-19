@@ -61,6 +61,35 @@ builds are ~1 minute.
   `allow_anonymous true` on the server for easy debugging without client
   certs. Only binds to localhost — not exposed to the internet.
 
+## Deployment (2026-03-19)
+
+The repo is cloned on the server at `~/mycarium`. Deployment uses `git pull` on
+the server rather than rsync from a local machine. This keeps the server repo in
+sync, avoids needing rsync flags or SSH key setup for push-based deploys, and
+means every deploy comes from a known git state.
+
+### PWA (app)
+
+```bash
+# SSH into the server
+ssh morphatic@mycarium.morphatic.com
+cd ~/mycarium
+git pull
+cd app && pnpm install && pnpm build
+sudo cp -r dist/* /var/www/mycarium/
+sudo chown -R www-data:www-data /var/www/mycarium/
+```
+
+### Server (persistence service + API)
+
+```bash
+ssh morphatic@mycarium.morphatic.com
+cd ~/mycarium
+git pull
+cd server && pnpm install && pnpm build
+sudo systemctl restart mycarium-server
+```
+
 ## Server Design Decisions (2026-03-18)
 
 - **TypeScript + Fastify + SQLite**: Single-process server runs both the
