@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ThresholdEditorProps {
   label: string;
@@ -18,6 +18,10 @@ export function ThresholdEditor({
   const [minVal, setMinVal] = useState(min.toString());
   const [maxVal, setMaxVal] = useState(max.toString());
   const [error, setError] = useState<string | null>(null);
+
+  // Sync inputs when device reports updated bounds
+  useEffect(() => { setMinVal(min.toString()); }, [min]);
+  useEffect(() => { setMaxVal(max.toString()); }, [max]);
 
   const handleSave = () => {
     const parsedMin = parseFloat(minVal);

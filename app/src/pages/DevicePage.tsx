@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useDevicesStore } from "../stores/devices";
 import { useMqttStore } from "../stores/mqtt";
+import { useTempUnitStore, toFahrenheit, toCelsius } from "../stores/tempUnit";
 import { useLiveness } from "../hooks/useLiveness";
 import { publish } from "../mqtt";
-import { SensorDisplay } from "../components/SensorDisplay";
 import { ActuatorBadge } from "../components/ActuatorBadge";
 import { ThresholdEditor } from "../components/ThresholdEditor";
 import { ModeSwitch } from "../components/ModeSwitch";
@@ -23,6 +23,7 @@ export function DevicePage() {
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   useEffect(() => {
     if (devices.length === 0) fetchDevices();
@@ -32,6 +33,7 @@ export function DevicePage() {
   const status = useMqttStore((s) =>
     deviceId ? s.statuses[deviceId] : undefined,
   );
+  const unit = useTempUnitStore((s) => s.unit);
   const liveness = useLiveness(deviceId ?? "");
   const alerts = useAlerts(deviceId ?? "");
 
@@ -67,17 +69,40 @@ export function DevicePage() {
 
   const displayName = device.name || device.deviceId;
 
+  // Temperature display value
+  const tempDisplay = status
+    ? unit === "F"
+      ? (status.temp_f ?? toFahrenheit(status.temp_c)).toFixed(1)
+      : status.temp_c.toFixed(1)
+    : "--";
+
+  // Threshold display values (convert to F if needed)
+  const tempMin = status?.temp_min_c;
+  const tempMax = status?.temp_max_c;
+  const displayTempMin =
+    tempMin != null
+      ? unit === "F"
+        ? toFahrenheit(tempMin).toFixed(1)
+        : tempMin.toFixed(1)
+      : "--";
+  const displayTempMax =
+    tempMax != null
+      ? unit === "F"
+        ? toFahrenheit(tempMax).toFixed(1)
+        : tempMax.toFixed(1)
+      : "--";
+
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div className="p-4 max-w-2xl mx-auto space-y-4">
       <button
         onClick={() => navigate("/")}
-        className="text-myc-teal dark:text-myc-accent text-sm mb-4 hover:underline"
+        className="text-myc-teal dark:text-myc-accent text-sm hover:underline"
       >
         &larr; Back
       </button>
 
-      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-6 space-y-6">
-        {/* Header */}
+      {/* Header + Device Info */}
+      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-myc-text dark:text-myc-text-dark">
@@ -114,7 +139,7 @@ export function DevicePage() {
 
         {/* Rename / Remove */}
         {editing ? (
-          <form onSubmit={handleRename} className="flex gap-2">
+          <form onSubmit={handleRename} className="flex gap-2 mt-3">
             <input
               type="text"
               value={name}
@@ -138,7 +163,7 @@ export function DevicePage() {
             </button>
           </form>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-2">
             <button
               onClick={() => {
                 setName(device.name || "");
@@ -156,39 +181,81 @@ export function DevicePage() {
             </button>
           </div>
         )}
+      </div>
 
-        {alerts.length > 0 && <AlertBanner alerts={alerts} />}
+      {alerts.length > 0 && <AlertBanner alerts={alerts} />}
 
-        {/* Live Status */}
+      {/* Live Readings — always visible */}
+      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Temperature */}
+          <div>
+            <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
+              Temperature
+            </p>
+            <p className="text-3xl font-bold text-myc-brown-warm dark:text-myc-accent">
+              {tempDisplay}&deg;{unit}
+            </p>
+            <p className="text-xs text-myc-muted dark:text-myc-muted-dark mt-1">
+              Range: {displayTempMin}&ndash;{displayTempMax}&deg;{unit}
+            </p>
+          </div>
+          {/* Humidity */}
+          <div>
+            <p className="text-xs text-myc-muted dark:text-myc-muted-dark uppercase tracking-wide">
+              Humidity
+            </p>
+            <p className="text-3xl font-bold text-myc-teal-deep dark:text-myc-teal">
+              {status ? status.humidity.toFixed(1) : "--"}%
+            </p>
+            <p className="text-xs text-myc-muted dark:text-myc-muted-dark mt-1">
+              Range: {status?.humidity_min ?? "--"}&ndash;{status?.humidity_max ?? "--"}%
+            </p>
+          </div>
+        </div>
+        {/* Actuator status */}
         {status && (
-          <>
-            <SensorDisplay status={status} />
-            <div className="flex gap-2">
-              <ActuatorBadge
-                label="Heater"
-                on={status.heater_on}
-                mode={status.heater_mode}
-              />
-              <ActuatorBadge
-                label="Fogger"
-                on={status.fogger_on}
-                mode={status.fogger_mode}
-              />
-            </div>
+          <div className="flex gap-2 mt-3 pt-3 border-t border-myc-cream dark:border-myc-teal-deep/20">
+            <ActuatorBadge
+              label="Heater"
+              on={status.heater_on}
+              mode={status.heater_mode}
+            />
+            <ActuatorBadge
+              label="Fogger"
+              on={status.fogger_on}
+              mode={status.fogger_mode}
+            />
+          </div>
+        )}
+      </div>
 
-            {/* Controls */}
-            <div className="border-t border-myc-cream dark:border-myc-teal-deep/20 pt-4 space-y-4">
-              <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
-                Controls
-              </h3>
-
+      {/* Controls — collapsible */}
+      {status && (
+        <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20">
+          <button
+            onClick={() => setControlsOpen(!controlsOpen)}
+            className="w-full flex items-center justify-between p-4 text-left"
+          >
+            <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
+              Controls
+            </h3>
+            <span className="text-myc-muted dark:text-myc-muted-dark text-sm">
+              {controlsOpen ? "\u25B2" : "\u25BC"}
+            </span>
+          </button>
+          {controlsOpen && (
+            <div className="px-4 pb-4 space-y-4">
               <ThresholdEditor
                 label="Temperature"
-                unit="°C"
-                min={status.temp_min_c ?? 20}
-                max={status.temp_max_c ?? 28}
+                unit={`\u00B0${unit}`}
+                min={unit === "F" ? toFahrenheit(status.temp_min_c ?? 20) : (status.temp_min_c ?? 20)}
+                max={unit === "F" ? toFahrenheit(status.temp_max_c ?? 28) : (status.temp_max_c ?? 28)}
                 onSave={(min, max) =>
-                  sendControl({ temp_min_c: min, temp_max_c: max })
+                  sendControl({
+                    temp_min_c: unit === "F" ? toCelsius(min) : min,
+                    temp_max_c: unit === "F" ? toCelsius(max) : max,
+                  })
                 }
               />
 
@@ -202,7 +269,7 @@ export function DevicePage() {
                 }
               />
 
-              <div className="space-y-2">
+              <div className="space-y-2 pt-2 border-t border-myc-cream dark:border-myc-teal-deep/20">
                 <ModeSwitch
                   label="Heater"
                   mode={(status.heater_mode as "auto" | "manual") ?? "auto"}
@@ -237,13 +304,13 @@ export function DevicePage() {
                 }
               />
             </div>
-          </>
-        )}
-
-        {/* History Chart */}
-        <div className="border-t border-myc-cream dark:border-myc-teal-deep/20 pt-4">
-          <HistoryChart deviceDbId={device.id} />
+          )}
         </div>
+      )}
+
+      {/* History Chart */}
+      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4">
+        <HistoryChart deviceDbId={device.id} />
       </div>
     </div>
   );
