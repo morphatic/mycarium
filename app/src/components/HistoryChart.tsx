@@ -391,7 +391,7 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
   const theme = useThemeStore((s) => s.theme);
   const unit = useTempUnitStore((s) => s.unit);
   const isDark = theme === "dark";
-  const [range, setRange] = useState<TimeRange>("24h");
+  const [range, setRange] = useState<TimeRange>("1h");
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -403,24 +403,30 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
 
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - timeRangeToSeconds(range);
+    const fetchData = () => {
+      setLoading(true);
+      const now = Math.floor(Date.now() / 1000);
+      const from = now - timeRangeToSeconds(range);
 
-    api<ReadingRow[]>(`/devices/${deviceDbId}/history?from=${from}&to=${now}`)
-      .then((data) => {
-        if (!cancelled) setReadings(data);
-      })
-      .catch(() => {
-        if (!cancelled) setReadings([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      api<ReadingRow[]>(`/devices/${deviceDbId}/history?from=${from}&to=${now}`)
+        .then((data) => {
+          if (!cancelled) setReadings(data);
+        })
+        .catch(() => {
+          if (!cancelled) setReadings([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 30_000);
 
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [deviceDbId, range]);
 
