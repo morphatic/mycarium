@@ -585,8 +585,8 @@ already a sensitive payload (it contains a session token).
 
 - [x] Rate limiting on `/auth/login` (5 req/min per IP) and `/auth/register` (3 req/min per IP)
 - [x] CORS origin restricted to app domain instead of `origin: true`
-- [ ] HSTS header sent by Nginx with max-age of at least 1 year (Nginx config updated, needs deploy)
-- [ ] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS) (Nginx config updated, needs deploy)
+- [x] HSTS header sent by Nginx with max-age of at least 1 year
+- [x] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS)
 - [x] Device name maximum length enforced server-side (64 characters)
 - [x] Login response omits `clientKey` (browser uses Nginx app-proxy cert, not user cert)
 - [ ] MQTT ACL restricts topic access per user (deferred for multi-user deployment)

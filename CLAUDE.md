@@ -26,7 +26,6 @@ All three components are deployed and operational at
 
 **Server/Infrastructure:**
 
-- Deploy HSTS and CSP headers via Nginx (config updated, not yet applied)
 - MQTT ACL for topic-level authorization (deferred until multi-user)
 
 **Integration:**
