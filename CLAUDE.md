@@ -14,21 +14,14 @@ All three components are deployed and operational at
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Firmware  | Complete | 29/30 DoD items (MQTT v5 message expiry pending) |
+| Firmware  | Complete + hardened | 33/34 DoD items (MQTT v5 message expiry pending) |
 | Server    | Complete + hardened | Rate limiting, CORS restriction, security headers |
 | App (PWA) | Complete + hardened | All 6 phases done, security review complete |
 
 ### Remaining Work
 
-**Firmware (deferred to future session):**
+**Firmware:**
 
-- Publish immediate status message after applying a control message
-  (instead of waiting for next 30s poll cycle)
-- Reject threshold values outside reasonable physical ranges (0–50°C,
-  0–100% humidity)
-- Enforce minimum threshold gap (2°C temp, 6% humidity) to prevent
-  rapid cycling from sensor noise
-- Rate-limit control messages (ignore commands within 1s of previous)
 - MQTT v5 message expiry interval
 
 **Server/Infrastructure:**

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // Section 10.2: Named Constants
 const DEVICE_ID: &str = env!("MYCARIUM_DEVICE_ID");
@@ -28,6 +28,17 @@ const _STATUS_EXPIRY: u32 = 90; // for MQTT v5 message expiry (future use)
 // WiFi backoff
 const WIFI_INITIAL_BACKOFF_MS: u64 = 1_000;
 const WIFI_MAX_BACKOFF_MS: u64 = 60_000;
+
+// Section 11.1: Threshold range and gap validation
+const TEMP_RANGE_MIN: f32 = 0.0;
+const TEMP_RANGE_MAX: f32 = 50.0;
+const HUM_RANGE_MIN: f32 = 0.0;
+const HUM_RANGE_MAX: f32 = 100.0;
+const MIN_TEMP_GAP: f32 = 2.0;
+const MIN_HUM_GAP: f32 = 6.0;
+
+// Section 11.2: Control message rate limiting
+const CONTROL_RATE_LIMIT_MS: u64 = 1_000;
 
 // Section 10.1: Compile-time TLS certificates (null-terminated PEM for X509)
 const CA_CERT: X509<'static> =
@@ -107,6 +118,7 @@ struct DeviceState {
     fogger_on: bool,
     heater_mode: ActuatorMode,
     fogger_mode: ActuatorMode,
+    last_control_time: Option<Instant>,
 }
 
 impl DeviceState {
@@ -120,54 +132,47 @@ impl DeviceState {
             fogger_on: false,
             heater_mode: ActuatorMode::Auto,
             fogger_mode: ActuatorMode::Auto,
+            last_control_time: None,
         }
     }
 
     // Section 9.2: Apply control message with validation
     fn apply_control(&mut self, msg: &ControlMessage) {
-        // Step 1: threshold updates
-        match (msg.temp_min, msg.temp_max) {
-            (Some(min), Some(max)) => {
-                if max > min {
-                    self.temp_min = min;
-                    self.temp_max = max;
-                } else {
-                    log::warn!("Invalid temp thresholds (max <= min), ignoring");
-                }
+        // Step 1: threshold updates with range and gap validation
+        if msg.temp_min.is_some() || msg.temp_max.is_some() {
+            let proposed_min = msg.temp_min.unwrap_or(self.temp_min);
+            let proposed_max = msg.temp_max.unwrap_or(self.temp_max);
+
+            if proposed_min < TEMP_RANGE_MIN || proposed_min > TEMP_RANGE_MAX
+                || proposed_max < TEMP_RANGE_MIN || proposed_max > TEMP_RANGE_MAX
+            {
+                log::warn!("Temp thresholds out of range (0-50°C), ignoring");
+            } else if proposed_max <= proposed_min {
+                log::warn!("Invalid temp thresholds (max <= min), ignoring");
+            } else if (proposed_max - proposed_min) < MIN_TEMP_GAP {
+                log::warn!("Temp threshold gap < {MIN_TEMP_GAP}°C, ignoring");
+            } else {
+                self.temp_min = proposed_min;
+                self.temp_max = proposed_max;
             }
-            (Some(min), None) => {
-                if min < self.temp_max {
-                    self.temp_min = min;
-                }
-            }
-            (None, Some(max)) => {
-                if max > self.temp_min {
-                    self.temp_max = max;
-                }
-            }
-            (None, None) => {}
         }
 
-        match (msg.hum_min, msg.hum_max) {
-            (Some(min), Some(max)) => {
-                if max > min {
-                    self.hum_min = min;
-                    self.hum_max = max;
-                } else {
-                    log::warn!("Invalid humidity thresholds (max <= min), ignoring");
-                }
+        if msg.hum_min.is_some() || msg.hum_max.is_some() {
+            let proposed_min = msg.hum_min.unwrap_or(self.hum_min);
+            let proposed_max = msg.hum_max.unwrap_or(self.hum_max);
+
+            if proposed_min < HUM_RANGE_MIN || proposed_min > HUM_RANGE_MAX
+                || proposed_max < HUM_RANGE_MIN || proposed_max > HUM_RANGE_MAX
+            {
+                log::warn!("Humidity thresholds out of range (0-100%), ignoring");
+            } else if proposed_max <= proposed_min {
+                log::warn!("Invalid humidity thresholds (max <= min), ignoring");
+            } else if (proposed_max - proposed_min) < MIN_HUM_GAP {
+                log::warn!("Humidity threshold gap < {MIN_HUM_GAP}%, ignoring");
+            } else {
+                self.hum_min = proposed_min;
+                self.hum_max = proposed_max;
             }
-            (Some(min), None) => {
-                if min < self.hum_max {
-                    self.hum_min = min;
-                }
-            }
-            (None, Some(max)) => {
-                if max > self.hum_min {
-                    self.hum_max = max;
-                }
-            }
-            (None, None) => {}
         }
 
         // Step 2: mode changes
@@ -356,6 +361,8 @@ fn main() {
     let mqtt_subscribed_cb = Arc::clone(&mqtt_subscribed);
     let mqtt_needs_subscribe = Arc::new(AtomicBool::new(false));
     let mqtt_needs_subscribe_cb = Arc::clone(&mqtt_needs_subscribe);
+    let publish_now = Arc::new(AtomicBool::new(false));
+    let publish_now_cb = Arc::clone(&publish_now);
 
     log::info!("Connecting MQTT to {broker_url}...");
     let mut mqtt_client = EspMqttClient::new_cb(
@@ -386,7 +393,22 @@ fn main() {
                                 Ok(msg) => {
                                     log::info!("Control message received on {topic}");
                                     if let Ok(mut s) = state_for_cb.lock() {
+                                        // Section 11.2: Rate-limit control messages
+                                        let now = Instant::now();
+                                        if let Some(last) = s.last_control_time {
+                                            if now.duration_since(last)
+                                                < Duration::from_millis(CONTROL_RATE_LIMIT_MS)
+                                            {
+                                                log::warn!(
+                                                    "Control message rate-limited, ignoring"
+                                                );
+                                                return;
+                                            }
+                                        }
+                                        s.last_control_time = Some(now);
                                         s.apply_control(&msg);
+                                        // Section 11.3: Signal immediate status publish
+                                        publish_now_cb.store(true, Ordering::Release);
                                     }
                                 }
                                 Err(e) => {
@@ -537,6 +559,14 @@ fn main() {
                 log::error!("Sensor read failed: {e:?} — skipping cycle");
             }
         }
-        thread::sleep(Duration::from_secs(POLL_INTERVAL_SEC));
+        // Interruptible sleep: wake early if a control message triggers immediate publish
+        for _ in 0..(POLL_INTERVAL_SEC * 10) {
+            if publish_now.load(Ordering::Acquire) {
+                publish_now.store(false, Ordering::Release);
+                log::info!("Immediate publish triggered by control message");
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
     }
 }

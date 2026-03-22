@@ -537,7 +537,7 @@ masked.
 
 ### Security and Responsiveness (deferred)
 
-- [ ] Reject threshold values outside reasonable ranges (temp 0–50°C, humidity 0–100%)
-- [ ] Enforce minimum threshold gap (2°C for temperature, 6% for humidity)
-- [ ] Rate-limit control messages (ignore commands within 1s of previous)
-- [ ] Publish immediate status message after applying a control message (instead of waiting for next poll cycle)
+- [x] Reject threshold values outside reasonable ranges (temp 0–50°C, humidity 0–100%)
+- [x] Enforce minimum threshold gap (2°C for temperature, 6% for humidity)
+- [x] Rate-limit control messages (ignore commands within 1s of previous)
+- [x] Publish immediate status message after applying a control message (instead of waiting for next poll cycle)
