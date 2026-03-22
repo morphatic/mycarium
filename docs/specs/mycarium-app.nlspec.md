@@ -257,6 +257,9 @@ user can select a time range:
 | Range Label  | Duration |
 |-------------|----------|
 | Last hour   | 1 hour   |
+| Last 3h     | 3 hours  |
+| Last 6h     | 6 hours  |
+| Last 12h    | 12 hours |
 | Last 24h    | 24 hours |
 | Last 7d     | 7 days   |
 | Last 30d    | 30 days  |
@@ -278,6 +281,43 @@ FUNCTION fetch_history(device_id, time_range, token):
 Heater and fogger activation events are optionally overlaid on the
 temperature and humidity graphs as shaded regions or markers, showing
 when each actuator was on.
+
+### 8.4 Chart Panning
+
+The user can pan the chart window backward and forward in time using
+prev/next buttons flanking the range selector. Each tap shifts the
+window by half its width (e.g. 30 minutes in the 1h view). When panned
+away from the current time, the chart pauses auto-refresh and displays
+a "Live" button. Tapping "Live" returns the window to the current time
+and resumes auto-refresh. Changing the time range also resets to live.
+
+### 8.5 Grouped Legend
+
+The chart legend is a custom component (not the built-in Chart.js
+legend) with two collapsible groups: Temperature and Humidity. Each
+group has a header toggle that shows/hides all series in the group, and
+individual toggles for each series within the group. All touch targets
+are at least 44px for mobile accessibility. Visibility state persists
+across data refreshes.
+
+- **Temperature group:** temperature trend line, temperature range
+  band, heater ON markers, heater OFF markers
+- **Humidity group:** humidity trend line, humidity range band, fogger
+  ON markers, fogger OFF markers
+
+### 8.6 Statistics Panel
+
+A collapsible statistics panel below the chart displays computed
+statistics for the current time window. Statistics include:
+
+- **Per-variable (temperature and humidity):** mean, median, min, max,
+  percentage of time in/below/above the configured target range,
+  displayed as a color-coded bar
+- **Per-actuator (heater and fogger):** duty cycle percentage, cycle
+  count, mean on-time, mean off-time, mean full cycle duration
+
+Statistics recompute when the chart data changes (range change, pan, or
+auto-refresh). The panel is collapsible to save screen space.
 
 ---
 
@@ -485,7 +525,7 @@ the firmware protocol.
 ### Authentication
 
 - [x] Users can register with email and password
-- [x] Users can log in and receive a session token, client cert, and client key
+- [x] Users can log in and receive a session token
 - [x] Unauthenticated users see only the login/register screen
 - [x] Sessions persist across browser restarts until logout or token expiry
 
@@ -510,9 +550,19 @@ the firmware protocol.
 ### Historical Data
 
 - [x] Temperature and humidity displayed as line graphs
-- [x] User can select time range: last hour, 24h, 7d, 30d
+- [x] User can select time range: 1h, 3h, 6h, 12h, 24h, 7d, 30d
 - [x] Graph data is fetched from server API
 - [x] Heater/fogger events can be overlaid on graphs
+- [x] Chart can be panned backward/forward via prev/next buttons
+- [x] Auto-refresh pauses when panned away from live; "Live" button returns to current time
+- [x] Custom grouped legend with Temperature and Humidity groups
+- [x] Group-level toggle shows/hides all series in the group
+- [x] Individual series toggles with 44px+ touch targets
+- [x] Legend visibility persists across data refreshes
+- [x] Statistics panel shows mean, median, min, max for temp and humidity
+- [x] Statistics panel shows time in/below/above range as percentages with color bar
+- [x] Statistics panel shows heater/fogger duty cycle, cycle count, and mean on/off/cycle times
+- [x] Statistics panel is collapsible
 
 ### Device Control
 

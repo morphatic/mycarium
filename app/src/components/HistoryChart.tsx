@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,14 +12,9 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { api } from "../api";
-import {
-  TimeRangeSelector,
-  timeRangeToSeconds,
-  type TimeRange,
-} from "./TimeRangeSelector";
 import { useThemeStore } from "../stores/theme";
 import { useTempUnitStore, toFahrenheit } from "../stores/tempUnit";
+import { ChartLegend, TEMP_GROUP, HUMIDITY_GROUP } from "./ChartLegend";
 import type { ReadingRow } from "../types";
 
 ChartJS.register(
@@ -32,8 +27,9 @@ ChartJS.register(
   Legend,
 );
 
-interface HistoryChartProps {
-  deviceDbId: number;
+export interface HistoryChartProps {
+  readings: ReadingRow[];
+  loading: boolean;
   tempMin?: number;
   tempMax?: number;
   humMin?: number;
@@ -116,6 +112,11 @@ function findTransitions(
   return transitions;
 }
 
+/** Labels that are linked — hiding one hides the other */
+export const LINKED_LABELS: Record<string, string> = {
+  "Temp range": "_tempMax",
+  "Humidity range": "_humMax",
+};
 
 function buildChartData(
   readings: ReadingRow[],
@@ -257,8 +258,8 @@ function buildChartData(
     {
       label: "Heater ON",
       data: heaterOnPoints,
-      borderColor: isDark ? "#ea580c" : "#ea580c",
-      backgroundColor: isDark ? "#ea580c" : "#ea580c",
+      borderColor: "#ea580c",
+      backgroundColor: "#ea580c",
       pointRadius: heaterOnRadii,
       pointStyle: "triangle",
       showLine: false,
@@ -268,8 +269,8 @@ function buildChartData(
     {
       label: "Heater OFF",
       data: heaterOffPoints,
-      borderColor: isDark ? "#ea580c" : "#ea580c",
-      backgroundColor: isDark ? "#ea580c" : "#ea580c",
+      borderColor: "#ea580c",
+      backgroundColor: "#ea580c",
       pointRadius: heaterOffRadii,
       pointStyle: "rectRot",
       showLine: false,
@@ -306,7 +307,6 @@ function buildChartData(
 function buildChartOptions(
   isDark: boolean,
   unit: "C" | "F",
-  hiddenLabels: React.RefObject<Set<string>>,
 ): ChartOptions<"line"> {
   const textColor = isDark ? "#9ca3af" : "#374151";
   const gridColor = isDark ? "rgba(55,142,121,0.15)" : "rgba(0,0,0,0.06)";
@@ -336,50 +336,7 @@ function buildChartOptions(
       },
     },
     plugins: {
-      legend: {
-        position: "bottom",
-        labels: {
-          boxWidth: 12,
-          padding: 8,
-          color: textColor,
-          usePointStyle: true,
-          filter: (item) => !item.text.startsWith("_"),
-        },
-        onClick: (_evt, legendItem, legend) => {
-          const idx = legendItem.datasetIndex;
-          if (idx == null) return;
-          const chart = legend.chart;
-          const label = chart.data.datasets[idx]?.label ?? "";
-
-          // Toggle the clicked dataset
-          const meta = chart.getDatasetMeta(idx);
-          meta.hidden = meta.hidden == null ? true : !meta.hidden;
-
-          // Persist to ref so it survives data refreshes
-          if (meta.hidden) {
-            hiddenLabels.current.add(label);
-          } else {
-            hiddenLabels.current.delete(label);
-          }
-
-          // If this is a range dataset, also toggle its linked partner
-          const linkedLabel = LINKED_LABELS[label];
-          if (linkedLabel) {
-            const linkedIdx = chart.data.datasets.findIndex((ds) => ds.label === linkedLabel);
-            if (linkedIdx >= 0) {
-              const linkedMeta = chart.getDatasetMeta(linkedIdx);
-              linkedMeta.hidden = meta.hidden;
-              if (meta.hidden) {
-                hiddenLabels.current.add(linkedLabel);
-              } else {
-                hiddenLabels.current.delete(linkedLabel);
-              }
-            }
-          }
-
-          chart.update();
-        },
-      },
+      legend: { display: false },
       tooltip: {
         callbacks: {
           label: (ctx) => {
@@ -399,82 +356,27 @@ function buildChartOptions(
   };
 }
 
-/** Labels that are linked — hiding one hides the other */
-const LINKED_LABELS: Record<string, string> = {
-  "Temp range": "_tempMax",
-  "Humidity range": "_humMax",
-};
-
-export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: HistoryChartProps) {
+export function HistoryChart({ readings, loading, tempMin, tempMax, humMin, humMax }: HistoryChartProps) {
   const theme = useThemeStore((s) => s.theme);
   const unit = useTempUnitStore((s) => s.unit);
   const isDark = theme === "dark";
-  const [range, setRange] = useState<TimeRange>("1h");
-  const [readings, setReadings] = useState<ReadingRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const chartRef = useRef<ChartJS<"line"> | null>(null);
 
   // Track hidden datasets by label so visibility persists across data refreshes
   const hiddenLabels = useRef<Set<string>>(new Set());
-
-  const lastReading = readings.length > 0 ? readings[readings.length - 1] : null;
 
   const thresholds = tempMin != null && tempMax != null && humMin != null && humMax != null
     ? { tempMin, tempMax, humMin, humMax }
     : undefined;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchData = () => {
-      setLoading(true);
-      const now = Math.floor(Date.now() / 1000);
-      const from = now - timeRangeToSeconds(range);
-
-      api<ReadingRow[]>(`/devices/${deviceDbId}/history?from=${from}&to=${now}`)
-        .then((data) => {
-          if (!cancelled) setReadings(data);
-        })
-        .catch(() => {
-          if (!cancelled) setReadings([]);
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 30_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [deviceDbId, range]);
+  // Determine which groups are present based on current unit
+  const tempGroups = TEMP_GROUP(unit);
+  const humGroups = HUMIDITY_GROUP;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
-          History
-        </h3>
-        <TimeRangeSelector value={range} onChange={setRange} />
-      </div>
-
-      {lastReading && (
-        <div className="flex gap-3 text-xs">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${lastReading.heaterOn ? "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${lastReading.heaterOn ? "bg-orange-500" : "bg-gray-400"}`} />
-            Heater {lastReading.heaterOn ? "ON" : "OFF"}
-          </span>
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${lastReading.foggerOn ? "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${lastReading.foggerOn ? "bg-blue-500 dark:bg-myc-teal" : "bg-gray-400"}`} />
-            Fogger {lastReading.foggerOn ? "ON" : "OFF"}
-          </span>
-        </div>
-      )}
-
       <div className="h-64">
-        {loading ? (
+        {loading && readings.length === 0 ? (
           <p className="text-myc-muted dark:text-myc-muted-dark text-sm">
             Loading...
           </p>
@@ -484,6 +386,7 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
           </p>
         ) : (
           <Line
+            ref={chartRef}
             data={(() => {
               const d = buildChartData(readings, isDark, unit, thresholds);
               // Reapply hidden state from previous render
@@ -494,10 +397,19 @@ export function HistoryChart({ deviceDbId, tempMin, tempMax, humMin, humMax }: H
               }
               return d;
             })()}
-            options={buildChartOptions(isDark, unit, hiddenLabels)}
+            options={buildChartOptions(isDark, unit)}
           />
         )}
       </div>
+
+      {readings.length > 0 && (
+        <ChartLegend
+          chartRef={chartRef}
+          hiddenLabels={hiddenLabels}
+          groups={[tempGroups, humGroups]}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 }

@@ -10,8 +10,11 @@ import { ActuatorBadge } from "../components/ActuatorBadge";
 import { ThresholdEditor } from "../components/ThresholdEditor";
 import { ModeSwitch } from "../components/ModeSwitch";
 import { HistoryChart } from "../components/HistoryChart";
+import { StatsPanel } from "../components/StatsPanel";
+import { TimeRangeSelector } from "../components/TimeRangeSelector";
 import { AlertBanner } from "../components/AlertBanner";
 import { useAlerts } from "../hooks/useAlerts";
+import { useChartWindow } from "../hooks/useChartWindow";
 import type { ControlMessage, ReadingRow } from "../types";
 
 /** Optimistic overrides applied on top of MQTT status until device confirms. */
@@ -62,6 +65,7 @@ export function DevicePage() {
   const unit = useTempUnitStore((s) => s.unit);
   const liveness = useLiveness(deviceId ?? "");
   const alerts = useAlerts(deviceId ?? "");
+  const chart = useChartWindow(device?.id ?? 0);
 
   // Clear optimistic overrides when a new status message arrives
   const statusTs = status?.ts;
@@ -388,14 +392,68 @@ export function DevicePage() {
       </div>
 
       {/* History Chart */}
-      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4">
+      <div className="bg-myc-surface dark:bg-myc-surface-dark rounded-lg shadow dark:shadow-myc-teal-deep/10 border border-transparent dark:border-myc-teal-deep/20 p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-myc-text dark:text-myc-text-dark">
+              History
+            </h3>
+            {!chart.isLive && (
+              <button
+                onClick={chart.jumpToLive}
+                className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={chart.panBack}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-myc-muted dark:text-myc-muted-dark hover:text-myc-text dark:hover:text-myc-text-dark"
+              aria-label="Pan back"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16">
+                <path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+            <TimeRangeSelector value={chart.range} onChange={chart.setRange} />
+            <button
+              onClick={chart.panForward}
+              disabled={chart.isLive}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                chart.isLive
+                  ? "text-gray-300 dark:text-gray-600 cursor-default"
+                  : "text-myc-muted dark:text-myc-muted-dark hover:text-myc-text dark:hover:text-myc-text-dark"
+              }`}
+              aria-label="Pan forward"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16">
+                <path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <HistoryChart
-          deviceDbId={device.id}
+          readings={chart.readings}
+          loading={chart.loading}
           tempMin={tempMinC}
           tempMax={tempMaxC}
           humMin={humMin}
           humMax={humMax}
         />
+
+        {chart.readings.length > 0 && (
+          <StatsPanel
+            readings={chart.readings}
+            tempMin={tempMinC}
+            tempMax={tempMaxC}
+            humMin={humMin}
+            humMax={humMax}
+          />
+        )}
       </div>
     </div>
   );
