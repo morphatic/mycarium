@@ -502,6 +502,16 @@ thresholds. A skipped cycle (30 seconds) is a small gap; sustained
 sensor failure is a hardware problem that should be diagnosed, not
 masked.
 
+**Why is MQTT v5 message expiry not yet implemented?** The underlying
+ESP-IDF C library (`esp-mqtt`) supports MQTT v5 properties including
+`message_expiry_interval` via `esp_mqtt5_client_set_publish_property`,
+but the Rust wrapper crate `esp-idf-svc` (v0.52) does not expose any
+MQTT v5 publish property APIs. The feature is blocked on upstream crate
+support. A raw FFI workaround is possible but fragile. For a
+single-device system, stale message delivery is low-risk — the app
+already handles reconnection gracefully. Revisit when `esp-idf-svc`
+adds v5 property support.
+
 ## 14. Definition of Done
 
 - [x] BME280 is detected at boot on either I2C pin ordering (21/22 or 22/21)
@@ -535,7 +545,7 @@ masked.
 - [x] Firmware compiles and flashes to ESP32-WROOM-32 via ESP-IDF with Rust
 - [x] Integration: device boots, connects WiFi, syncs NTP, connects MQTT, publishes status, receives and applies a control message, and reflects the new state in the next published status message
 
-### Security and Responsiveness (deferred)
+### Security and Responsiveness
 
 - [x] Reject threshold values outside reasonable ranges (temp 0–50°C, humidity 0–100%)
 - [x] Enforce minimum threshold gap (2°C for temperature, 6% for humidity)
