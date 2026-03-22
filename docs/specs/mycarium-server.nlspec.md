@@ -588,7 +588,7 @@ already a sensitive payload (it contains a session token).
 - [ ] HSTS header sent by Nginx with max-age of at least 1 year (Nginx config updated, needs deploy)
 - [ ] Content Security Policy header sent by Nginx (script-src 'self', connect-src to app origin + WSS) (Nginx config updated, needs deploy)
 - [x] Device name maximum length enforced server-side (64 characters)
-- [ ] Login response omits `clientKey` (or documents why it is needed)
+- [x] Login response omits `clientKey` (browser uses Nginx app-proxy cert, not user cert)
 - [ ] MQTT ACL restricts topic access per user (deferred for multi-user deployment)
 
 ### Integration

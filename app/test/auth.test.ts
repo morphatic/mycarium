@@ -5,8 +5,6 @@ const STORAGE_KEY = "mycarium-session";
 
 const mockResponse = {
   token: "test-token-123",
-  client_cert: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-  client_key: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
 };
 
 function mockFetchOk(body: unknown, status = 200) {

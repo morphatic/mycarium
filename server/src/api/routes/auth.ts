@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod/v4";
-import { createUser, authenticateUser } from "../../services/user.js";
-import { storeUserCert, getUserCert } from "../../services/user.js";
+import { createUser, authenticateUser, storeUserCert } from "../../services/user.js";
 import { createSession } from "../../services/session.js";
 import { issueClientCertificate } from "../../services/cert.js";
 import type { Config } from "../../config.js";
@@ -63,13 +62,8 @@ export function authRoutes(config: Config): FastifyPluginAsync {
       }
 
       const token = createSession(app.db, user.id, config.SESSION_DURATION_DAYS);
-      const certs = getUserCert(app.db, user.id);
 
-      return {
-        token,
-        client_cert: certs?.cert ?? null,
-        client_key: certs?.key ?? null,
-      };
+      return { token };
     });
   };
 }

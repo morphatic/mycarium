@@ -39,8 +39,6 @@ function clearSession(): void {
 
 interface AuthResponse {
   token: string;
-  client_cert: string;
-  client_key: string;
 }
 
 export const useAuthStore = create<AuthState>((set) => {

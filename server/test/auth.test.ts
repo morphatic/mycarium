@@ -117,7 +117,8 @@ describe("auth routes", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.token).toBeDefined();
-    expect(body.client_cert).toContain("CERTIFICATE");
+    expect(body.client_cert).toBeUndefined();
+    expect(body.client_key).toBeUndefined();
   });
 
   it("returns 401 on wrong password", async () => {
